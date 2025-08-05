@@ -258,6 +258,34 @@ def get_database_stats():
         safe_print(f"❌ Błąd pobierania statystyk bazy danych: {e}")
         return {'total_users': 'Błąd', 'total_points': 'Błąd', 'top_user': 'Błąd'}
 
+def get_bot_data():
+    """Pobiera dane bota z pliku JSON"""
+    try:
+        if os.path.exists('bot_data.json'):
+            with open('bot_data.json', 'r', encoding='utf-8') as f:
+                return json.load(f)
+        else:
+            return {
+                'followers': [],
+                'subscribers': [],
+                'moderators': [],
+                'vips': [],
+                'trusted_users': [],
+                'spotify_enabled': False,
+                'last_updated': None
+            }
+    except Exception as e:
+        safe_print(f"❌ Błąd odczytu danych bota: {e}")
+        return {
+            'followers': [],
+            'subscribers': [],
+            'moderators': [],
+            'vips': [],
+            'trusted_users': [],
+            'spotify_enabled': False,
+            'last_updated': None
+        }
+
 def monitor_bots():
     """Monitoruje status botów w tle"""
     while True:
@@ -388,18 +416,22 @@ def api_stats():
         return jsonify({'error': 'Unauthorized'}), 401
     
     db_stats = get_database_stats()
+    bot_data = get_bot_data()
     
     return jsonify({
         'twitch': {
-            'followers': 'N/A',  # Wymagałoby integracji z Twitch API
-            'subscribers': 'N/A',
-            'vips': 'N/A',
-            'moderators': 'N/A'
+            'followers': len(bot_data.get('followers', [])),
+            'subscribers': len(bot_data.get('subscribers', [])),
+            'vips': len(bot_data.get('vips', [])),
+            'moderators': len(bot_data.get('moderators', [])),
+            'trusted_users': len(bot_data.get('trusted_users', [])),
+            'spotify_enabled': bot_data.get('spotify_enabled', False)
         },
         'discord': {
             'status': 'N/A'  # Wymagałoby integracji z Discord API
         },
-        'database': db_stats
+        'database': db_stats,
+        'last_updated': bot_data.get('last_updated')
     })
 
 @app.route('/web', defaults={'path': ''})

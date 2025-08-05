@@ -114,7 +114,7 @@ class TwitchBot:
                     client_secret=spotify_client_secret,
                     redirect_uri=spotify_redirect_uri,
                     scope="user-modify-playback-state user-read-playback-state",
-                    open_browser=True
+                    open_browser=False  # Wyłączone dla serwera
                 )
                 
                 # Inicjalizacja Spotify z lepszą obsługą tokenów
@@ -125,21 +125,11 @@ class TwitchBot:
                     self.sp = spotipy.Spotify(auth=token_info['access_token'])
                     self.spotify_enabled = True
                 else:
-                    safe_print(f"🔑 Rozpoczynam autoryzację Spotify...")
-                    safe_print(f"📱 Otworzę przeglądarkę - zaloguj się i autoryzuj aplikację")
-                    # Używamy get_cached_token zamiast deprecated get_access_token
-                    auth_url = self.sp_oauth.get_authorize_url()
-                    safe_print(f"🌐 Jeśli przeglądarka się nie otworzy, idź na: {auth_url}")
-                    
-                    # Pobieramy token bez deprecated parametru
-                    token_info = self.sp_oauth.get_access_token()
-                    if token_info:
-                        self.token_info = token_info
-                        self.sp = spotipy.Spotify(auth=token_info['access_token'])
-                        self.spotify_enabled = True
-                        safe_print(f"✅ Autoryzacja Spotify zakończona pomyślnie!")
-                    else:
-                        raise Exception("Nie udało się uzyskać tokenu Spotify")
+                    # Na serwerze nie próbujemy autoryzować - wymagamy wcześniej zapisanych tokenów
+                    safe_print(f"⚠️ Brak zapisanych tokenów Spotify")
+                    safe_print(f"🔧 Uruchom bota lokalnie raz aby autoryzować Spotify")
+                    safe_print(f"⚠️ Moduł Spotify będzie wyłączony na serwerze")
+                    raise Exception("Brak tokenów Spotify - wymagana autoryzacja lokalna")
                         
             except Exception as e:
                 safe_print(f"❌ Błąd autoryzacji Spotify: {e}")
@@ -217,6 +207,9 @@ class TwitchBot:
         
         # Uruchom monitor zmian w sklepie
         self.start_shop_monitor()
+        
+        # Zapisz początkowe dane do pliku dla web API
+        self.save_bot_data()
 
     def get_channel_name(self):
         """Zwraca poprawny format nazwy kanału z # na początku"""
@@ -859,6 +852,8 @@ class TwitchBot:
             time.sleep(2)  # Odstęp między podziękowaniami
         
         self.last_followers = current_set
+        # Zapisz dane do pliku dla web API
+        self.save_bot_data()
 
     def get_twitch_followers(self):
         """Pobiera listę followerów z Twitch API z paginacją"""
@@ -972,6 +967,8 @@ class TwitchBot:
             time.sleep(2)  # Odstęp między podziękowaniami
         
         self.last_subscribers = current_set
+        # Zapisz dane do pliku dla web API
+        self.save_bot_data()
 
     def get_twitch_subscribers(self):
         """Pobiera listę subskrybentów z Twitch API z paginacją"""
@@ -1572,6 +1569,25 @@ class TwitchBot:
         shop_thread = threading.Thread(target=shop_monitor_loop, daemon=True)
         shop_thread.start()
         safe_print(f"🛒 Monitor zmian w sklepie uruchomiony")
+
+    def save_bot_data(self):
+        """Zapisuje dane bota do pliku JSON dla web API"""
+        try:
+            bot_data = {
+                'followers': list(self.last_followers) if hasattr(self, 'last_followers') else [],
+                'subscribers': list(self.last_subscribers) if hasattr(self, 'last_subscribers') else [],
+                'moderators': list(self.moderators) if hasattr(self, 'moderators') else [],
+                'vips': list(self.vips) if hasattr(self, 'vips') else [],
+                'trusted_users': list(self.trusted_users) if hasattr(self, 'trusted_users') else [],
+                'spotify_enabled': getattr(self, 'spotify_enabled', False),
+                'last_updated': datetime.now().isoformat()
+            }
+            
+            with open('bot_data.json', 'w', encoding='utf-8') as f:
+                json.dump(bot_data, f, ensure_ascii=False, indent=2)
+                
+        except Exception as e:
+            safe_print(f"❌ Błąd zapisywania danych bota: {e}")
 
     def run(self):
         self.reactor.process_forever()
