@@ -224,8 +224,19 @@ class TwitchBot:
             if self.sp_oauth.is_token_expired(self.token_info):
                 safe_print(f"🔄 Odświeżam token Spotify...")
                 self.token_info = self.sp_oauth.refresh_access_token(self.token_info['refresh_token'])
+                
+                # Zapisz odświeżony token do cache
+                import json
+                cache_file = ".cache"
+                try:
+                    with open(cache_file, 'w') as f:
+                        json.dump(self.token_info, f)
+                    safe_print(f"💾 Zapisano odświeżony token do cache")
+                except Exception as cache_error:
+                    safe_print(f"⚠️ Nie udało się zapisać tokenu do cache: {cache_error}")
+                
                 self.sp = spotipy.Spotify(auth=self.token_info['access_token'])
-                safe_print(f"✅ Token Spotify odświeżony")
+                safe_print(f"✅ Token Spotify odświeżony i zapisany")
             return True
         except Exception as e:
             safe_print(f"❌ Błąd odświeżania tokenu Spotify: {e}")
