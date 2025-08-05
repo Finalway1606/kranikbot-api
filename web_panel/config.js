@@ -5,15 +5,23 @@ const ENVIRONMENTS = {
     // Lokalne środowisko deweloperskie
     local: {
         API_BASE_URL: 'http://localhost:5000/api',
-        API_KEY: 'kranikbot_2025_secure_key',
+        API_KEY: 'kranikbot-secure-key-2024',
         REFRESH_INTERVAL: 5000,
+        DEMO_MODE: false
+    },
+    
+    // Render.com production
+    render: {
+        API_BASE_URL: 'https://kranikbot-api.onrender.com/api',
+        API_KEY: 'kranikbot-secure-key-2024',
+        REFRESH_INTERVAL: 10000,
         DEMO_MODE: false
     },
     
     // GitHub Pages z Heroku backend
     github_heroku: {
         API_BASE_URL: 'https://your-app-name.herokuapp.com/api',
-        API_KEY: 'your_secure_production_key',
+        API_KEY: 'kranikbot-secure-key-2024',
         REFRESH_INTERVAL: 10000,
         DEMO_MODE: false
     },
@@ -21,7 +29,7 @@ const ENVIRONMENTS = {
     // GitHub Pages z Railway backend
     github_railway: {
         API_BASE_URL: 'https://your-app-name.railway.app/api',
-        API_KEY: 'your_secure_production_key',
+        API_KEY: 'kranikbot-secure-key-2024',
         REFRESH_INTERVAL: 10000,
         DEMO_MODE: false
     },
@@ -41,6 +49,8 @@ function detectEnvironment() {
     
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
         return 'local';
+    } else if (hostname.includes('onrender.com')) {
+        return 'render';
     } else if (hostname.includes('github.io')) {
         // Sprawdź czy backend jest dostępny
         return 'github_heroku'; // lub 'github_railway' lub 'demo'
