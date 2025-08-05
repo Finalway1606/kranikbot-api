@@ -1,10 +1,5 @@
-// Konfiguracja - używa config.js lub fallback
-const CONFIG = window.KRANIKBOT_CONFIG || {
-    API_BASE_URL: 'http://localhost:5000/api',
-    API_KEY: 'kranikbot_2025_secure_key',
-    REFRESH_INTERVAL: 5000,
-    DEMO_MODE: false
-};
+// Konfiguracja - używa config.js
+// CONFIG jest dostępny jako window.KRANIKBOT_CONFIG z config.js
 
 // Globalne zmienne
 let serverUrl = 'http://localhost:5000';
@@ -418,27 +413,31 @@ function refreshLogs() {
 
 // Zarządzanie ustawieniami
 function loadSettings() {
-    const savedUrl = localStorage.getItem('kranikbot_server_url');
-    const savedApiKey = localStorage.getItem('kranikbot_api_key');
-    const savedRefreshInterval = localStorage.getItem('kranikbot_refresh_interval');
+    // Użyj window.KRANIKBOT_CONFIG z config.js jako domyślne wartości
+    const config = window.KRANIKBOT_CONFIG || {
+        API_BASE_URL: 'http://localhost:5000/api',
+        API_KEY: 'kranikbot-secure-key-2024'
+    };
+    const defaultUrl = config.API_BASE_URL.replace('/api', '');
+    const defaultApiKey = config.API_KEY;
+    
+    const savedUrl = localStorage.getItem('kranikbot_server_url') || defaultUrl;
+    const savedApiKey = localStorage.getItem('kranikbot_api_key') || defaultApiKey;
+    const savedRefreshInterval = localStorage.getItem('kranikbot_refresh_interval') || '5';
     const savedAutoRefresh = localStorage.getItem('kranikbot_auto_refresh');
 
-    if (savedUrl) {
-        serverUrl = savedUrl;
-        document.getElementById('serverUrl').value = savedUrl;
-    }
+    serverUrl = savedUrl;
+    document.getElementById('serverUrl').value = savedUrl;
 
-    if (savedApiKey) {
-        apiKey = savedApiKey;
-        document.getElementById('apiKey').value = savedApiKey;
-    }
+    apiKey = savedApiKey;
+    document.getElementById('apiKey').value = savedApiKey;
 
-    if (savedRefreshInterval) {
-        document.getElementById('refreshInterval').value = savedRefreshInterval;
-    }
+    document.getElementById('refreshInterval').value = savedRefreshInterval;
 
     if (savedAutoRefresh !== null) {
         document.getElementById('autoRefresh').checked = savedAutoRefresh === 'true';
+    } else {
+        document.getElementById('autoRefresh').checked = true; // domyślnie włączone
     }
 }
 
