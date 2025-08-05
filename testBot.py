@@ -84,6 +84,10 @@ class TwitchBot:
             raise ValueError("TWITCH_TOKEN nie jest ustawiony w pliku .env")
         if not CHANNEL:
             raise ValueError("TWITCH_CHANNEL nie jest ustawiony w pliku .env")
+    
+    def get_channel_name(self):
+        """Zwraca poprawny format nazwy kanału z # na początku"""
+        return CHANNEL if CHANNEL.startswith('#') else f"#{CHANNEL}"
         
         self.reactor = irc.client.Reactor()
         self.connection = self.reactor.server().connect(TWITCH_SERVER, TWITCH_PORT, NICKNAME, password=TOKEN)
@@ -233,19 +237,27 @@ class TwitchBot:
 
     def on_connect(self, connection, event):
         safe_print(f"✅ Połączono z Twitch IRC!")
+        
+        # Pobierz poprawny format nazwy kanału
+        channel_name = self.get_channel_name()
+        safe_print(f"🔗 Próbuję dołączyć do kanału: {channel_name}")
+        
         # Żądaj capabilities aby otrzymywać tagi z USERNOTICE
         connection.cap("REQ", ":twitch.tv/tags")
         connection.cap("REQ", ":twitch.tv/commands")
-        connection.join(CHANNEL)
+        connection.join(channel_name)
         
+        safe_print(f"📝 Wysyłam wiadomość powitalną...")
         # Wyślij wiadomość powitalną
-        connection.privmsg(CHANNEL, "Robocik wbija bez pytania 🤖")
+        connection.privmsg(channel_name, "Robocik wbija bez pytania 🤖")
+        safe_print(f"✅ Bot gotowy do pracy na kanale {channel_name}!")
         
         self.start_reminder()  # URUCHAMIAMY PRZYPOMNIENIA PO POŁĄCZENIU
 
     def on_message(self, connection, event):
         username = event.source.split("!")[0].lower()
         message = event.arguments[0].strip()
+        channel_name = self.get_channel_name()
         
         # Ignoruj własne wiadomości bota
         if username == "kranikbot":
@@ -259,53 +271,53 @@ class TwitchBot:
         # Dodaj punkty tylko za pierwszą wiadomość (10 pkt) - tylko dla followerów
         first_message_points = self.db.add_message(username, is_follower)
         if first_message_points > 0:
-            connection.privmsg(CHANNEL, f"🎉 Witaj @{username}! Otrzymujesz {first_message_points} punktów za pierwszą wiadomość! Kolejne punkty zdobywasz grając w minigry.")
+            connection.privmsg(channel_name, f"🎉 Witaj @{username}! Otrzymujesz {first_message_points} punktów za pierwszą wiadomość! Kolejne punkty zdobywasz grając w minigry.")
         elif not is_follower and first_message_points == 0:
             # Sprawdź czy to nowy użytkownik bez follow
             user = self.db.get_user(username)
             if user and user[2] == 1:  # messages_count == 1 (pierwsza wiadomość)
-                connection.privmsg(CHANNEL, f"👋 Witaj @{username}! Aby zdobywać punkty, musisz zostać followerem kanału!")
+                connection.privmsg(channel_name, f"👋 Witaj @{username}! Aby zdobywać punkty, musisz zostać followerem kanału!")
         
         # Sprawdź codzienny bonus - tylko dla followerów
         if is_follower:
             bonus_msg = self.games.check_daily_bonus(username)
             if bonus_msg:
-                connection.privmsg(CHANNEL, bonus_msg)
+                connection.privmsg(channel_name, bonus_msg)
 
         # === KOMENDY GIER I PUNKTÓW ===
         if message == "!roll":
             result = self.games.roll_dice(username)
-            connection.privmsg(CHANNEL, result)
+            connection.privmsg(channel_name, result)
             return
 
         elif message.startswith("!coinflip"):
             parts = message.split()
             choice = parts[1] if len(parts) > 1 else None
             result = self.games.coin_flip(username, choice)
-            connection.privmsg(CHANNEL, result)
+            connection.privmsg(channel_name, result)
             return
 
         elif message.startswith("!roulette "):
             bet = message[len("!roulette "):].strip()
             result = self.games.roulette(username, bet)
-            connection.privmsg(CHANNEL, result)
+            connection.privmsg(channel_name, result)
             return
 
         elif message == "!quiz":
             result = self.games.start_quiz()
-            connection.privmsg(CHANNEL, result)
+            connection.privmsg(channel_name, result)
             return
 
         elif message.startswith("!answer "):
             answer = message[len("!answer "):].strip()
             result = self.games.answer_quiz(username, answer)
-            connection.privmsg(CHANNEL, result)
+            connection.privmsg(channel_name, result)
             return
 
         elif message == "!daily":
             is_follower = self.is_follower(username)
             if not is_follower:
-                connection.privmsg(CHANNEL, f"❌ @{username}, musisz być followerem kanału aby otrzymać dzienny bonus!")
+                connection.privmsg(channel_name, f"❌ @{username}, musisz być followerem kanału aby otrzymać dzienny bonus!")
                 return
                 
             success, bonus = self.db.daily_bonus(username, is_follower)
@@ -313,17 +325,17 @@ class TwitchBot:
                 result = f"🎁 @{username} otrzymał dzienny bonus: +{bonus} punktów!"
             else:
                 result = f"❌ @{username}, już odebrałeś dzienny bonus! Spróbuj jutro."
-            connection.privmsg(CHANNEL, result)
+            connection.privmsg(channel_name, result)
             return
 
         elif message == "!points":
             result = self.games.get_user_stats(username)
-            connection.privmsg(CHANNEL, result)
+            connection.privmsg(channel_name, result)
             return
 
         elif message == "!top":
             result = self.games.get_leaderboard()
-            connection.privmsg(CHANNEL, result)
+            connection.privmsg(channel_name, result)
             return
 
         elif message.startswith("!give "):
@@ -333,26 +345,26 @@ class TwitchBot:
                 points = parts[2]
                 is_mod = username in self.trusted_users
                 result = self.games.give_points(username, to_user, points, is_mod)
-                connection.privmsg(CHANNEL, result)
+                connection.privmsg(channel_name, result)
             else:
-                connection.privmsg(CHANNEL, f"@{username}, użyj: !give @user <punkty>")
+                connection.privmsg(channel_name, f"@{username}, użyj: !give @user <punkty>")
             return
 
         # === KOMENDY SKLEPU ===
         elif message == "!shop":
             result = self.shop.get_shop_list()
-            connection.privmsg(CHANNEL, result)
+            connection.privmsg(channel_name, result)
             return
 
         elif message.startswith("!kup "):
             reward_id = message[len("!kup "):].strip()
             result = self.shop.buy_reward(username, reward_id)
-            connection.privmsg(CHANNEL, result)
+            connection.privmsg(channel_name, result)
             return
 
         elif message == "!inventory":
             result = self.shop.get_user_inventory(username)
-            connection.privmsg(CHANNEL, result)
+            connection.privmsg(channel_name, result)
             return
 
         elif message.startswith("!daj "):
@@ -362,11 +374,11 @@ class TwitchBot:
                     target_user = parts[0].lstrip('@')
                     reward_id = parts[1]
                     result = self.shop.give_reward_as_owner(target_user, reward_id)
-                    connection.privmsg(CHANNEL, result)
+                    connection.privmsg(channel_name, result)
                 else:
-                    connection.privmsg(CHANNEL, f"@{username}, użyj: !daj @user <nagroda>")
+                    connection.privmsg(channel_name, f"@{username}, użyj: !daj @user <nagroda>")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, tylko właściciel może dawać nagrody za darmo.")
+                connection.privmsg(channel_name, f"❌ @{username}, tylko właściciel może dawać nagrody za darmo.")
             return
 
         elif message.startswith("!zabierz "):
@@ -375,7 +387,7 @@ class TwitchBot:
             is_mod = username in self.trusted_users
             
             if not (is_owner or is_mod):
-                connection.privmsg(CHANNEL, f"❌ @{username}, brak uprawnień do zabierania nagród.")
+                connection.privmsg(channel_name, f"❌ @{username}, brak uprawnień do zabierania nagród.")
                 return
             
             parts = message.split()
@@ -383,9 +395,9 @@ class TwitchBot:
                 target_user = parts[1].lstrip('@')
                 reward_id = parts[2]
                 result = self.shop.remove_reward(target_user, reward_id)
-                connection.privmsg(CHANNEL, f"🔨 @{username}: {result}")
+                connection.privmsg(channel_name, f"🔨 @{username}: {result}")
             else:
-                connection.privmsg(CHANNEL, f"@{username}, użyj: !zabierz @user <nagroda>")
+                connection.privmsg(channel_name, f"@{username}, użyj: !zabierz @user <nagroda>")
             return
 
         elif message == "!resetall":
@@ -395,9 +407,9 @@ class TwitchBot:
                 # Resetuj wszystkie punkty
                 points_reset = self.games.reset_all_points()
                 
-                connection.privmsg(CHANNEL, f"🔥 @{username} zresetował WSZYSTKO! Usunięto {rewards_reset} nagród i zresetowano punkty {points_reset} użytkowników.")
+                connection.privmsg(channel_name, f"🔥 @{username} zresetował WSZYSTKO! Usunięto {rewards_reset} nagród i zresetowano punkty {points_reset} użytkowników.")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, tylko właściciel może użyć tej komendy.")
+                connection.privmsg(channel_name, f"❌ @{username}, tylko właściciel może użyć tej komendy.")
             return
 
         # === KOMENDY SPOTIFY ===
@@ -405,22 +417,22 @@ class TwitchBot:
         elif message == "!spotifyoff":
             if username in self.trusted_users:
                 self.spotify_enabled = False
-                connection.privmsg(CHANNEL, f"🔇 @{username} wyłączył moduł Spotify.")
+                connection.privmsg(channel_name, f"🔇 @{username} wyłączył moduł Spotify.")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, brak uprawnień do wyłączenia Spotify.")
+                connection.privmsg(channel_name, f"❌ @{username}, brak uprawnień do wyłączenia Spotify.")
             return
 
         elif message == "!spotifyon":
             if username in self.trusted_users:
                 self.spotify_enabled = True
-                connection.privmsg(CHANNEL, f"🎵 @{username} ponownie włączył moduł Spotify.")
+                connection.privmsg(channel_name, f"🎵 @{username} ponownie włączył moduł Spotify.")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, brak uprawnień do włączenia Spotify.")
+                connection.privmsg(channel_name, f"❌ @{username}, brak uprawnień do włączenia Spotify.")
             return
 
         elif message.startswith("!sr "):
             if not self.spotify_enabled:
-                connection.privmsg(CHANNEL, f"❌ @{username}, moduł Spotify jest obecnie wyłączony.")
+                connection.privmsg(channel_name, f"❌ @{username}, moduł Spotify jest obecnie wyłączony.")
                 return
 
             now = time.time()
@@ -431,116 +443,116 @@ class TwitchBot:
                 if now - last_time < SONG_REQUEST_TIMEOUT:
                     minutes = remaining // 60
                     seconds = remaining % 60
-                    connection.privmsg(CHANNEL, f"❌ @{username}, możesz dodać kolejną piosenkę za {minutes}m {seconds}s.")
+                    connection.privmsg(channel_name, f"❌ @{username}, możesz dodać kolejną piosenkę za {minutes}m {seconds}s.")
                     return
 
             song_name = message[len("!sr "):].strip()
             if not song_name:
-                connection.privmsg(CHANNEL, f"@{username}, podaj tytuł piosenki po komendzie !sr")
+                connection.privmsg(channel_name, f"@{username}, podaj tytuł piosenki po komendzie !sr")
                 return
 
             try:
                 if not self.ensure_token_valid():
-                    connection.privmsg(CHANNEL, f"❌ @{username}, problem z autoryzacją Spotify.")
+                    connection.privmsg(channel_name, f"❌ @{username}, problem z autoryzacją Spotify.")
                     return
                     
                 results = self.sp.search(q=song_name, limit=3, type='track')
                 tracks = results.get('tracks', {}).get('items', [])
                 if not tracks:
-                    connection.privmsg(CHANNEL, f"❌ @{username}, nie znalazłem żadnych wyników dla \"{song_name}\".")
+                    connection.privmsg(channel_name, f"❌ @{username}, nie znalazłem żadnych wyników dla \"{song_name}\".")
                     return
 
                 self.pending_song_requests[username] = tracks
-                connection.privmsg(CHANNEL, f"@{username}, wybierz piosenkę wpisując !select <numer>:")
+                connection.privmsg(channel_name, f"@{username}, wybierz piosenkę wpisując !select <numer>:")
                 for i, track in enumerate(tracks, 1):
                     artists = ", ".join(artist['name'] for artist in track['artists'])
-                    connection.privmsg(CHANNEL, f"{i}. {track['name']} - {artists}")
+                    connection.privmsg(channel_name, f"{i}. {track['name']} - {artists}")
 
             except Exception as e:
                 safe_print(f"Spotify error:", e)
-                connection.privmsg(CHANNEL, f"❌ @{username}, wystąpił błąd podczas wyszukiwania piosenki.")
+                connection.privmsg(channel_name, f"❌ @{username}, wystąpił błąd podczas wyszukiwania piosenki.")
 
         elif message.startswith("!select "):
             if not self.spotify_enabled:
-                connection.privmsg(CHANNEL, f"❌ @{username}, moduł Spotify jest obecnie wyłączony.")
+                connection.privmsg(channel_name, f"❌ @{username}, moduł Spotify jest obecnie wyłączony.")
                 return
 
             if username not in self.pending_song_requests:
-                connection.privmsg(CHANNEL, f"@{username}, nie masz żadnych oczekujących propozycji.")
+                connection.privmsg(channel_name, f"@{username}, nie masz żadnych oczekujących propozycji.")
                 return
             try:
                 choice = int(message[len("!select "):].strip())
                 tracks = self.pending_song_requests[username]
                 if choice < 1 or choice > len(tracks):
-                    connection.privmsg(CHANNEL, f"@{username}, wybierz numer od 1 do {len(tracks)}.")
+                    connection.privmsg(channel_name, f"@{username}, wybierz numer od 1 do {len(tracks)}.")
                     return
                 track = tracks[choice - 1]
                 if not self.ensure_token_valid():
-                    connection.privmsg(CHANNEL, f"❌ @{username}, problem z autoryzacją Spotify.")
+                    connection.privmsg(channel_name, f"❌ @{username}, problem z autoryzacją Spotify.")
                     return
                     
                 self.sp.add_to_queue(track['uri'])
                 artists = ", ".join(artist['name'] for artist in track['artists'])
-                connection.privmsg(CHANNEL, f"🎶 @{username}, dodano: \"{track['name']}\" - {artists}")
+                connection.privmsg(channel_name, f"🎶 @{username}, dodano: \"{track['name']}\" - {artists}")
                 self.last_request_time[username] = time.time()
                 del self.pending_song_requests[username]
             except Exception as e:
                 safe_print(f"Spotify error:", e)
-                connection.privmsg(CHANNEL, f"❌ @{username}, błąd przy dodawaniu piosenki.")
+                connection.privmsg(channel_name, f"❌ @{username}, błąd przy dodawaniu piosenki.")
 
         elif message == "!ply":
             if not self.spotify_enabled:
-                connection.privmsg(CHANNEL, f"❌ @{username}, moduł Spotify jest obecnie wyłączony.")
+                connection.privmsg(channel_name, f"❌ @{username}, moduł Spotify jest obecnie wyłączony.")
                 return
 
             if not self.ensure_token_valid():
-                connection.privmsg(CHANNEL, f"❌ @{username}, problem z autoryzacją Spotify.")
+                connection.privmsg(channel_name, f"❌ @{username}, problem z autoryzacją Spotify.")
                 return
                 
             if self.start_playback():
-                connection.privmsg(CHANNEL, f"▶️ @{username}, rozpocząłem odtwarzanie na Spotify!")
+                connection.privmsg(channel_name, f"▶️ @{username}, rozpocząłem odtwarzanie na Spotify!")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, nie udało się rozpocząć odtwarzania.")
+                connection.privmsg(channel_name, f"❌ @{username}, nie udało się rozpocząć odtwarzania.")
 
         elif message == "!skip":
             if not self.spotify_enabled:
-                connection.privmsg(CHANNEL, f"❌ @{username}, moduł Spotify jest obecnie wyłączony.")
+                connection.privmsg(channel_name, f"❌ @{username}, moduł Spotify jest obecnie wyłączony.")
                 return
 
             if username not in self.allowed_skip:
-                connection.privmsg(CHANNEL, f"❌ @{username}, nie masz uprawnień do użycia tej komendy.")
+                connection.privmsg(channel_name, f"❌ @{username}, nie masz uprawnień do użycia tej komendy.")
                 return
             try:
                 if not self.ensure_token_valid():
-                    connection.privmsg(CHANNEL, f"❌ @{username}, problem z autoryzacją Spotify.")
+                    connection.privmsg(channel_name, f"❌ @{username}, problem z autoryzacją Spotify.")
                     return
                     
                 self.sp.next_track()
-                connection.privmsg(CHANNEL, f"⏭️ @{username} pominął aktualną piosenkę.")
+                connection.privmsg(channel_name, f"⏭️ @{username} pominął aktualną piosenkę.")
             except Exception as e:
                 safe_print(f"Spotify skip error:", e)
-                connection.privmsg(CHANNEL, f"❌ @{username}, nie udało się pominąć piosenki.")
+                connection.privmsg(channel_name, f"❌ @{username}, nie udało się pominąć piosenki.")
 
         elif message == "!currentsong":
             if not self.spotify_enabled:
-                connection.privmsg(CHANNEL, f"❌ @{username}, moduł Spotify jest obecnie wyłączony.")
+                connection.privmsg(channel_name, f"❌ @{username}, moduł Spotify jest obecnie wyłączony.")
                 return
 
             try:
                 if not self.ensure_token_valid():
-                    connection.privmsg(CHANNEL, f"❌ @{username}, problem z autoryzacją Spotify.")
+                    connection.privmsg(channel_name, f"❌ @{username}, problem z autoryzacją Spotify.")
                     return
                     
                 playback = self.sp.current_playback()
                 if playback and playback.get('item'):
                     track = playback['item']
                     artists = ", ".join(artist['name'] for artist in track['artists'])
-                    connection.privmsg(CHANNEL, f"🎵 Teraz gra: \"{track['name']}\" - {artists}")
+                    connection.privmsg(channel_name, f"🎵 Teraz gra: \"{track['name']}\" - {artists}")
                 else:
-                    connection.privmsg(CHANNEL, "❌ Nie ma aktualnie odtwarzanej piosenki.")
+                    connection.privmsg(channel_name, "❌ Nie ma aktualnie odtwarzanej piosenki.")
             except Exception as e:
                 safe_print(f"Spotify error:", e)
-                connection.privmsg(CHANNEL, "❌ Błąd przy pobieraniu informacji o piosence.")
+                connection.privmsg(channel_name, "❌ Błąd przy pobieraniu informacji o piosence.")
 
         elif message == "!help":
             help_msg1 = (
@@ -555,60 +567,60 @@ class TwitchBot:
             help_msg4 = (
                 "🛒 Sklep: !shop | !kup <nagroda> | !inventory"
             )
-            connection.privmsg(CHANNEL, help_msg1)
-            connection.privmsg(CHANNEL, help_msg2)
-            connection.privmsg(CHANNEL, help_msg3)
-            connection.privmsg(CHANNEL, help_msg4)
+            connection.privmsg(channel_name, help_msg1)
+            connection.privmsg(channel_name, help_msg2)
+            connection.privmsg(channel_name, help_msg3)
+            connection.privmsg(channel_name, help_msg4)
 
         # === KOMENDY FOLLOWÓW ===
         elif message == "!followsoff":
             if username in self.trusted_users:
                 self.follow_thanks_enabled = False
-                connection.privmsg(CHANNEL, f"🔇 @{username} wyłączył automatyczne dziękowanie za followy.")
+                connection.privmsg(channel_name, f"🔇 @{username} wyłączył automatyczne dziękowanie za followy.")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, brak uprawnień do wyłączenia followów.")
+                connection.privmsg(channel_name, f"❌ @{username}, brak uprawnień do wyłączenia followów.")
             return
 
         elif message == "!followson":
             if username in self.trusted_users:
                 if not os.getenv('TWITCH_CLIENT_ID') or not os.getenv('TWITCH_ACCESS_TOKEN'):
-                    connection.privmsg(CHANNEL, f"❌ @{username}, brak konfiguracji Twitch API. Zobacz TWITCH_API_SETUP.md")
+                    connection.privmsg(channel_name, f"❌ @{username}, brak konfiguracji Twitch API. Zobacz TWITCH_API_SETUP.md")
                     return
                     
                 self.follow_thanks_enabled = True
                 if not self.check_followers_thread or not self.check_followers_thread.is_alive():
                     self.start_follow_checker()
-                connection.privmsg(CHANNEL, f"💜 @{username} włączył automatyczne dziękowanie za followy.")
+                connection.privmsg(channel_name, f"💜 @{username} włączył automatyczne dziękowanie za followy.")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, brak uprawnień do włączenia followów.")
+                connection.privmsg(channel_name, f"❌ @{username}, brak uprawnień do włączenia followów.")
             return
 
         # === KOMENDY SUBSKRYPCJI ===
         elif message == "!subsoff":
             if username in self.trusted_users:
                 self.sub_thanks_enabled = False
-                connection.privmsg(CHANNEL, f"🔇 @{username} wyłączył automatyczne dziękowanie za suby.")
+                connection.privmsg(channel_name, f"🔇 @{username} wyłączył automatyczne dziękowanie za suby.")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, brak uprawnień do wyłączenia subów.")
+                connection.privmsg(channel_name, f"❌ @{username}, brak uprawnień do wyłączenia subów.")
             return
 
         elif message == "!subson":
             if username in self.trusted_users:
                 if not os.getenv('TWITCH_CLIENT_ID') or not os.getenv('TWITCH_ACCESS_TOKEN'):
-                    connection.privmsg(CHANNEL, f"❌ @{username}, brak konfiguracji Twitch API. Zobacz TWITCH_API_SETUP.md")
+                    connection.privmsg(channel_name, f"❌ @{username}, brak konfiguracji Twitch API. Zobacz TWITCH_API_SETUP.md")
                     return
                     
                 self.sub_thanks_enabled = True
                 if not self.check_subscribers_thread or not self.check_subscribers_thread.is_alive():
                     self.start_subscription_checker()
-                connection.privmsg(CHANNEL, f"🌟 @{username} włączył automatyczne dziękowanie za suby.")
+                connection.privmsg(channel_name, f"🌟 @{username} włączył automatyczne dziękowanie za suby.")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, brak uprawnień do włączenia subów.")
+                connection.privmsg(channel_name, f"❌ @{username}, brak uprawnień do włączenia subów.")
             return
 
         elif message == "!subs":
             if not os.getenv('TWITCH_CLIENT_ID') or not os.getenv('TWITCH_ACCESS_TOKEN'):
-                connection.privmsg(CHANNEL, f"❌ @{username}, brak konfiguracji Twitch API.")
+                connection.privmsg(channel_name, f"❌ @{username}, brak konfiguracji Twitch API.")
                 return
                 
             try:
@@ -620,16 +632,16 @@ class TwitchBot:
                         display_subs = subscribers[:10]
                         subs_text = ", ".join(display_subs)
                         if sub_count > 10:
-                            connection.privmsg(CHANNEL, f"🌟 Subskrybenci ({sub_count}): {subs_text} i {sub_count - 10} więcej...")
+                            connection.privmsg(channel_name, f"🌟 Subskrybenci ({sub_count}): {subs_text} i {sub_count - 10} więcej...")
                         else:
-                            connection.privmsg(CHANNEL, f"🌟 Subskrybenci ({sub_count}): {subs_text}")
+                            connection.privmsg(channel_name, f"🌟 Subskrybenci ({sub_count}): {subs_text}")
                     else:
-                        connection.privmsg(CHANNEL, "📊 Brak subskrybentów.")
+                        connection.privmsg(channel_name, "📊 Brak subskrybentów.")
                 else:
-                    connection.privmsg(CHANNEL, f"❌ @{username}, nie udało się pobrać listy subskrybentów.")
+                    connection.privmsg(channel_name, f"❌ @{username}, nie udało się pobrać listy subskrybentów.")
             except Exception as e:
                 safe_print(f"❌ Błąd komendy !subs: {e}")
-                connection.privmsg(CHANNEL, f"❌ @{username}, błąd przy pobieraniu subskrybentów.")
+                connection.privmsg(channel_name, f"❌ @{username}, błąd przy pobieraniu subskrybentów.")
             return
 
         # === KOMENDY MODYFIKACJI KANAŁU ===
@@ -637,32 +649,32 @@ class TwitchBot:
             if username in self.trusted_users or username.lower() == "kranik1606":
                 new_title = message[len("!settitle "):].strip()
                 if new_title:
-                    connection.privmsg(CHANNEL, f"📝 @{username}, zmieniam tytuł streama...")
+                    connection.privmsg(channel_name, f"📝 @{username}, zmieniam tytuł streama...")
                     success = self.modify_channel_info(title=new_title)
                     if success:
-                        connection.privmsg(CHANNEL, f"✅ @{username}, tytuł streama został zmieniony na: {new_title}")
+                        connection.privmsg(channel_name, f"✅ @{username}, tytuł streama został zmieniony na: {new_title}")
                     else:
-                        connection.privmsg(CHANNEL, f"❌ @{username}, nie udało się zmienić tytułu streama.")
+                        connection.privmsg(channel_name, f"❌ @{username}, nie udało się zmienić tytułu streama.")
                 else:
-                    connection.privmsg(CHANNEL, f"@{username}, użyj: !settitle <nowy tytuł>")
+                    connection.privmsg(channel_name, f"@{username}, użyj: !settitle <nowy tytuł>")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, nie masz uprawnień do zmiany tytułu.")
+                connection.privmsg(channel_name, f"❌ @{username}, nie masz uprawnień do zmiany tytułu.")
             return
 
         elif message.startswith("!setgame "):
             if username in self.trusted_users or username.lower() == "kranik1606":
                 new_game = message[len("!setgame "):].strip()
                 if new_game:
-                    connection.privmsg(CHANNEL, f"🎮 @{username}, zmieniam kategorię streama...")
+                    connection.privmsg(channel_name, f"🎮 @{username}, zmieniam kategorię streama...")
                     success = self.modify_channel_info(game_name=new_game)
                     if success:
-                        connection.privmsg(CHANNEL, f"✅ @{username}, kategoria streama została zmieniona na: {new_game}")
+                        connection.privmsg(channel_name, f"✅ @{username}, kategoria streama została zmieniona na: {new_game}")
                     else:
-                        connection.privmsg(CHANNEL, f"❌ @{username}, nie udało się zmienić kategorii streama.")
+                        connection.privmsg(channel_name, f"❌ @{username}, nie udało się zmienić kategorii streama.")
                 else:
-                    connection.privmsg(CHANNEL, f"@{username}, użyj: !setgame <nazwa gry>")
+                    connection.privmsg(channel_name, f"@{username}, użyj: !setgame <nazwa gry>")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, nie masz uprawnień do zmiany kategorii.")
+                connection.privmsg(channel_name, f"❌ @{username}, nie masz uprawnień do zmiany kategorii.")
             return
 
         elif message.startswith("!setstream "):
@@ -677,30 +689,30 @@ class TwitchBot:
                 if len(matches) >= 2:
                     new_title = matches[0]
                     new_game = matches[1]
-                    connection.privmsg(CHANNEL, f"🔄 @{username}, zmieniam tytuł i kategorię streama...")
+                    connection.privmsg(channel_name, f"🔄 @{username}, zmieniam tytuł i kategorię streama...")
                     success = self.modify_channel_info(title=new_title, game_name=new_game)
                     if success:
-                        connection.privmsg(CHANNEL, f"✅ @{username}, stream zaktualizowany!")
-                        connection.privmsg(CHANNEL, f"📝 Tytuł: {new_title}")
-                        connection.privmsg(CHANNEL, f"🎮 Kategoria: {new_game}")
+                        connection.privmsg(channel_name, f"✅ @{username}, stream zaktualizowany!")
+                        connection.privmsg(channel_name, f"📝 Tytuł: {new_title}")
+                        connection.privmsg(channel_name, f"🎮 Kategoria: {new_game}")
                     else:
-                        connection.privmsg(CHANNEL, f"❌ @{username}, nie udało się zaktualizować streama.")
+                        connection.privmsg(channel_name, f"❌ @{username}, nie udało się zaktualizować streama.")
                 else:
-                    connection.privmsg(CHANNEL, f'@{username}, użyj: !setstream "tytuł" "gra"')
+                    connection.privmsg(channel_name, f'@{username}, użyj: !setstream "tytuł" "gra"')
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, nie masz uprawnień do zmiany streama.")
+                connection.privmsg(channel_name, f"❌ @{username}, nie masz uprawnień do zmiany streama.")
             return
 
         elif message == "!motywacja":
             quote = random.choice(MOTYWACYJNE_CYTATY)
-            connection.privmsg(CHANNEL, f"💪 {quote}")
+            connection.privmsg(channel_name, f"💪 {quote}")
 
         elif message.startswith("!clear_discord "):
             # Sprawdź uprawnienia - tylko właściciel
             is_owner = username.lower() == "kranik1606"
             
             if not is_owner:
-                connection.privmsg(CHANNEL, f"❌ @{username}, tylko właściciel kanału może czyścić kanały Discord.")
+                connection.privmsg(channel_name, f"❌ @{username}, tylko właściciel kanału może czyścić kanały Discord.")
                 return
             
             parts = message.split()
@@ -709,10 +721,10 @@ class TwitchBot:
                 
                 # Sprawdź czy Discord bot jest skonfigurowany
                 if not self.discord.bot_enabled:
-                    connection.privmsg(CHANNEL, f"❌ @{username}, Discord bot nie jest skonfigurowany.")
+                    connection.privmsg(channel_name, f"❌ @{username}, Discord bot nie jest skonfigurowany.")
                     return
                 
-                connection.privmsg(CHANNEL, f"🧹 @{username}, rozpoczynam czyszczenie kanału Discord (ID: {channel_id})...")
+                connection.privmsg(channel_name, f"🧹 @{username}, rozpoczynam czyszczenie kanału Discord (ID: {channel_id})...")
                 
                 # Uruchom czyszczenie w osobnym wątku
                 def clear_channel_thread():
@@ -726,25 +738,25 @@ class TwitchBot:
                         loop.close()
                         
                         if success:
-                            self.connection.privmsg(CHANNEL, f"✅ @{username}, czyszczenie kanału Discord zakończone!")
+                            self.connection.privmsg(channel_name, f"✅ @{username}, czyszczenie kanału Discord zakończone!")
                         else:
-                            self.connection.privmsg(CHANNEL, f"❌ @{username}, wystąpił błąd podczas czyszczenia kanału.")
+                            self.connection.privmsg(channel_name, f"❌ @{username}, wystąpił błąd podczas czyszczenia kanału.")
                     except Exception as e:
                         safe_print(f"❌ Błąd czyszczenia kanału Discord: {e}")
-                        self.connection.privmsg(CHANNEL, f"❌ @{username}, błąd podczas czyszczenia: {str(e)}")
+                        self.connection.privmsg(channel_name, f"❌ @{username}, błąd podczas czyszczenia: {str(e)}")
                 
                 threading.Thread(target=clear_channel_thread, daemon=True).start()
             else:
-                connection.privmsg(CHANNEL, f"@{username}, użyj: !clear_discord <channel_id>")
+                connection.privmsg(channel_name, f"@{username}, użyj: !clear_discord <channel_id>")
             return
 
         elif message == "!clear_points":
             if username in self.trusted_users:
-                connection.privmsg(CHANNEL, f"🧹 @{username}, rozpoczynam czyszczenie punktów użytkownikom bez follow...")
+                connection.privmsg(channel_name, f"🧹 @{username}, rozpoczynam czyszczenie punktów użytkownikom bez follow...")
                 cleared_count = self.clear_non_followers_points()
-                connection.privmsg(CHANNEL, f"✅ @{username}, wyczyszczono punkty {cleared_count} użytkownikom.")
+                connection.privmsg(channel_name, f"✅ @{username}, wyczyszczono punkty {cleared_count} użytkownikom.")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, nie masz uprawnień do czyszczenia punktów.")
+                connection.privmsg(channel_name, f"❌ @{username}, nie masz uprawnień do czyszczenia punktów.")
 
         elif message.startswith("!checkfollow "):
             if username in self.trusted_users or username.lower() == "kranik1606":
@@ -752,11 +764,11 @@ class TwitchBot:
                 if target_user:
                     is_follower = self.is_follower(target_user)
                     status = "✅ TAK" if is_follower else "❌ NIE"
-                    connection.privmsg(CHANNEL, f"🔍 @{username}, użytkownik {target_user} ma follow: {status}")
+                    connection.privmsg(channel_name, f"🔍 @{username}, użytkownik {target_user} ma follow: {status}")
                 else:
-                    connection.privmsg(CHANNEL, f"@{username}, użyj: !checkfollow <username>")
+                    connection.privmsg(channel_name, f"@{username}, użyj: !checkfollow <username>")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, nie masz uprawnień do sprawdzania followów.")
+                connection.privmsg(channel_name, f"❌ @{username}, nie masz uprawnień do sprawdzania followów.")
 
         elif message.startswith("!rc "):
             # Komenda rekomendacji - tylko dla właściciela i moderatorów
@@ -778,34 +790,34 @@ class TwitchBot:
                     ]
                     
                     recommendation = random.choice(recommend_messages)
-                    connection.privmsg(CHANNEL, recommendation)
+                    connection.privmsg(channel_name, recommendation)
                     safe_print(f"📢 {username} polecił profil: {target_user} ({profile_link})")
                 else:
-                    connection.privmsg(CHANNEL, f"@{username}, użyj: !rc @username")
+                    connection.privmsg(channel_name, f"@{username}, użyj: !rc @username")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, nie masz uprawnień do polecania profili.")
+                connection.privmsg(channel_name, f"❌ @{username}, nie masz uprawnień do polecania profili.")
 
         elif message == "!update_shop":
             if username in self.trusted_users or username.lower() == "kranik1606":
-                connection.privmsg(CHANNEL, f"🛒 @{username}, wymuszam aktualizację sklepu Discord...")
+                connection.privmsg(channel_name, f"🛒 @{username}, wymuszam aktualizację sklepu Discord...")
                 try:
                     self.shop.force_update_shop_post()
-                    connection.privmsg(CHANNEL, f"✅ @{username}, sklep Discord został zaktualizowany!")
+                    connection.privmsg(channel_name, f"✅ @{username}, sklep Discord został zaktualizowany!")
                 except Exception as e:
                     safe_print(f"❌ Błąd aktualizacji sklepu: {e}")
-                    connection.privmsg(CHANNEL, f"❌ @{username}, błąd podczas aktualizacji sklepu.")
+                    connection.privmsg(channel_name, f"❌ @{username}, błąd podczas aktualizacji sklepu.")
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, nie masz uprawnień do aktualizacji sklepu.")
+                connection.privmsg(channel_name, f"❌ @{username}, nie masz uprawnień do aktualizacji sklepu.")
 
 
 
         elif message == "!shutdown":
             if username in self.trusted_users:
-                connection.privmsg(CHANNEL, "Robocik się odmeldowuje! 🤖👋")
+                connection.privmsg(channel_name, "Robocik się odmeldowuje! 🤖👋")
                 self.connection.quit("Shutdown by command")
                 sys.exit(0)
             else:
-                connection.privmsg(CHANNEL, f"❌ @{username}, nie masz uprawnień do wyłączenia bota.")
+                connection.privmsg(channel_name, f"❌ @{username}, nie masz uprawnień do wyłączenia bota.")
 
     # === METODY OBSŁUGI FOLLOWÓW ===
     def start_follow_checker(self):
@@ -912,7 +924,7 @@ class TwitchBot:
             
         try:
             message = random.choice(FOLLOW_THANKS_MESSAGES).format(username=username)
-            self.connection.privmsg(CHANNEL, message)
+            self.connection.privmsg(channel_name, message)
             # Powiadomienie Discord o nowym followerze
             self.discord.notify_new_follower(username)
             safe_print(f"💜 Podziękowano za follow: {username}")
@@ -1024,7 +1036,7 @@ class TwitchBot:
             
         try:
             message = random.choice(SUB_THANKS_MESSAGES).format(username=username)
-            self.connection.privmsg(CHANNEL, message)
+            self.connection.privmsg(channel_name, message)
             # Powiadomienie Discord o nowym subskrybencie
             self.discord.notify_new_subscriber(username)
             safe_print(f"🌟 Podziękowano za sub: {username}")
@@ -1355,11 +1367,11 @@ class TwitchBot:
                     raid_message += "🎮"
                 
                 # Wyślij wiadomość na chat
-                connection.privmsg(CHANNEL, raid_message)
+                connection.privmsg(channel_name, raid_message)
                 
                 # Dodatkowa wiadomość z polecajką
                 recommendation = f"💜 Polecam gorąco kanał {raider_name}! Warto go obserwować! 🌟"
-                connection.privmsg(CHANNEL, recommendation)
+                connection.privmsg(channel_name, recommendation)
                 
         except Exception as e:
             safe_print(f"❌ Błąd obsługi USERNOTICE: {e}")
@@ -1384,15 +1396,15 @@ class TwitchBot:
             time.sleep(15)
             
             while True:
-                self.connection.privmsg(CHANNEL, ZBIORKA_MSG)
+                self.connection.privmsg(channel_name, ZBIORKA_MSG)
                 time.sleep(15)
-                self.connection.privmsg(CHANNEL, FOLLOW_MSG)
+                self.connection.privmsg(channel_name, FOLLOW_MSG)
                 time.sleep(600)
-                self.connection.privmsg(CHANNEL, DISCORD_MSG)
+                self.connection.privmsg(channel_name, DISCORD_MSG)
                 time.sleep(900)
-                self.connection.privmsg(CHANNEL, PRIME_MSG)
+                self.connection.privmsg(channel_name, PRIME_MSG)
                 time.sleep(0)
-                self.connection.privmsg(CHANNEL, BITS_MSG)
+                self.connection.privmsg(channel_name, BITS_MSG)
                 time.sleep(1800)
 
         thread = threading.Thread(target=reminder_loop, daemon=True)
@@ -1499,7 +1511,7 @@ class TwitchBot:
                 try:
                     quiz_timeout_msg = self.games.check_quiz_timeout()
                     if quiz_timeout_msg:
-                        self.connection.privmsg(CHANNEL, quiz_timeout_msg)
+                        self.connection.privmsg(channel_name, quiz_timeout_msg)
                     time.sleep(5)  # Sprawdzaj co 5 sekund
                 except Exception as e:
                     safe_print(f"❌ Błąd sprawdzania timeout quizu: {e}")
