@@ -1,0 +1,66 @@
+// 🌐 KranikBot Web Panel - Konfiguracja
+// Ten plik zawiera ustawienia dla różnych środowisk
+
+const ENVIRONMENTS = {
+    // Lokalne środowisko deweloperskie
+    local: {
+        API_BASE_URL: 'http://localhost:5000/api',
+        API_KEY: 'kranikbot_2025_secure_key',
+        REFRESH_INTERVAL: 5000,
+        DEMO_MODE: false
+    },
+    
+    // GitHub Pages z Heroku backend
+    github_heroku: {
+        API_BASE_URL: 'https://your-app-name.herokuapp.com/api',
+        API_KEY: 'your_secure_production_key',
+        REFRESH_INTERVAL: 10000,
+        DEMO_MODE: false
+    },
+    
+    // GitHub Pages z Railway backend
+    github_railway: {
+        API_BASE_URL: 'https://your-app-name.railway.app/api',
+        API_KEY: 'your_secure_production_key',
+        REFRESH_INTERVAL: 10000,
+        DEMO_MODE: false
+    },
+    
+    // Tryb demo (bez backend)
+    demo: {
+        API_BASE_URL: 'http://localhost:5000/api',
+        API_KEY: 'demo_key',
+        REFRESH_INTERVAL: 3000,
+        DEMO_MODE: true
+    }
+};
+
+// 🔧 Automatyczne wykrywanie środowiska
+function detectEnvironment() {
+    const hostname = window.location.hostname;
+    
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return 'local';
+    } else if (hostname.includes('github.io')) {
+        // Sprawdź czy backend jest dostępny
+        return 'github_heroku'; // lub 'github_railway' lub 'demo'
+    } else {
+        return 'local';
+    }
+}
+
+// 📝 Eksportuj konfigurację dla aktualnego środowiska
+const CURRENT_ENV = detectEnvironment();
+const CONFIG = ENVIRONMENTS[CURRENT_ENV];
+
+// 🔍 Debug info
+console.log(`🌐 KranikBot Web Panel`);
+console.log(`📍 Environment: ${CURRENT_ENV}`);
+console.log(`🔗 API URL: ${CONFIG.API_BASE_URL}`);
+console.log(`🧪 Demo Mode: ${CONFIG.DEMO_MODE}`);
+
+// Sprawdź czy config.js jest załadowany przed script.js
+if (typeof window !== 'undefined') {
+    window.KRANIKBOT_CONFIG = CONFIG;
+    window.KRANIKBOT_ENV = CURRENT_ENV;
+}
