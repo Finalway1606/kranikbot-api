@@ -97,53 +97,56 @@ class TwitchBot:
         spotify_client_secret = os.getenv("SPOTIFY_CLIENT_SECRET")
         spotify_redirect_uri = os.getenv("SPOTIFY_REDIRECT_URI", "http://127.0.0.1:8888/callback")
         
-        if not spotify_client_id or not spotify_client_secret:
-            safe_print(f"⚠️ Brak konfiguracji Spotify - moduł będzie wyłączony")
-            self.spotify_enabled = False
-            return
-            
-        self.sp_oauth = SpotifyOAuth(
-            client_id=spotify_client_id,
-            client_secret=spotify_client_secret,
-            redirect_uri=spotify_redirect_uri,
-            scope="user-modify-playback-state user-read-playback-state",
-            open_browser=True
-        )
-        
-        # Inicjalizacja Spotify z lepszą obsługą tokenów
-        try:
-            token_info = self.sp_oauth.get_cached_token()
-            if token_info:
-                safe_print(f"✅ Znaleziono zapisane tokeny Spotify")
-                self.token_info = token_info
-                self.sp = spotipy.Spotify(auth=token_info['access_token'])
-            else:
-                safe_print(f"🔑 Rozpoczynam autoryzację Spotify...")
-                safe_print(f"📱 Otworzę przeglądarkę - zaloguj się i autoryzuj aplikację")
-                # Używamy get_cached_token zamiast deprecated get_access_token
-                auth_url = self.sp_oauth.get_authorize_url()
-                safe_print(f"🌐 Jeśli przeglądarka się nie otworzy, idź na: {auth_url}")
-                
-                # Pobieramy token bez deprecated parametru
-                token_info = self.sp_oauth.get_access_token()
-                if token_info:
-                    self.token_info = token_info
-                    self.sp = spotipy.Spotify(auth=token_info['access_token'])
-                    safe_print(f"✅ Autoryzacja Spotify zakończona pomyślnie!")
-                else:
-                    raise Exception("Nie udało się uzyskać tokenu Spotify")
-                    
-        except Exception as e:
-            safe_print(f"❌ Błąd autoryzacji Spotify: {e}")
-            safe_print(f"⚠️ Moduł Spotify będzie wyłączony")
-            self.spotify_enabled = False
-            self.sp = None
-            self.token_info = None
-            return
-
+        # Zawsze inicjalizuj podstawowe atrybuty Spotify
         self.pending_song_requests = {}
         self.last_request_time = {}
-        self.spotify_enabled = True
+        self.spotify_enabled = False
+        self.sp = None
+        self.token_info = None
+        self.sp_oauth = None
+        
+        if not spotify_client_id or not spotify_client_secret:
+            safe_print(f"⚠️ Brak konfiguracji Spotify - moduł będzie wyłączony")
+        else:
+            try:
+                self.sp_oauth = SpotifyOAuth(
+                    client_id=spotify_client_id,
+                    client_secret=spotify_client_secret,
+                    redirect_uri=spotify_redirect_uri,
+                    scope="user-modify-playback-state user-read-playback-state",
+                    open_browser=True
+                )
+                
+                # Inicjalizacja Spotify z lepszą obsługą tokenów
+                token_info = self.sp_oauth.get_cached_token()
+                if token_info:
+                    safe_print(f"✅ Znaleziono zapisane tokeny Spotify")
+                    self.token_info = token_info
+                    self.sp = spotipy.Spotify(auth=token_info['access_token'])
+                    self.spotify_enabled = True
+                else:
+                    safe_print(f"🔑 Rozpoczynam autoryzację Spotify...")
+                    safe_print(f"📱 Otworzę przeglądarkę - zaloguj się i autoryzuj aplikację")
+                    # Używamy get_cached_token zamiast deprecated get_access_token
+                    auth_url = self.sp_oauth.get_authorize_url()
+                    safe_print(f"🌐 Jeśli przeglądarka się nie otworzy, idź na: {auth_url}")
+                    
+                    # Pobieramy token bez deprecated parametru
+                    token_info = self.sp_oauth.get_access_token()
+                    if token_info:
+                        self.token_info = token_info
+                        self.sp = spotipy.Spotify(auth=token_info['access_token'])
+                        self.spotify_enabled = True
+                        safe_print(f"✅ Autoryzacja Spotify zakończona pomyślnie!")
+                    else:
+                        raise Exception("Nie udało się uzyskać tokenu Spotify")
+                        
+            except Exception as e:
+                safe_print(f"❌ Błąd autoryzacji Spotify: {e}")
+                safe_print(f"⚠️ Moduł Spotify będzie wyłączony")
+                self.spotify_enabled = False
+                self.sp = None
+                self.token_info = None
         
         # Follow tracking
         self.follow_thanks_enabled = FOLLOW_THANKS_ENABLED
