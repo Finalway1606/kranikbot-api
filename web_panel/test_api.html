@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test API Connection</title>
+</head>
+<body>
+    <h1>Test połączenia z API</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function testAPI() {
+            const results = document.getElementById('results');
+            const apiUrl = 'https://kranikbot-api.onrender.com/api';
+            const apiKey = 'kranikbot-secure-key-2024';
+            
+            results.innerHTML = '<p>Testowanie połączenia...</p>';
+            
+            try {
+                // Test /api/status
+                console.log('Testing /api/status...');
+                const statusResponse = await fetch(`${apiUrl}/status`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    }
+                });
+                
+                console.log('Status response:', statusResponse);
+                const statusData = await statusResponse.json();
+                console.log('Status data:', statusData);
+                
+                results.innerHTML += `<p>✅ /api/status: ${statusResponse.status} - ${JSON.stringify(statusData)}</p>`;
+                
+                // Test /api/stats
+                console.log('Testing /api/stats...');
+                const statsResponse = await fetch(`${apiUrl}/stats`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    }
+                });
+                
+                console.log('Stats response:', statsResponse);
+                const statsData = await statsResponse.json();
+                console.log('Stats data:', statsData);
+                
+                results.innerHTML += `<p>✅ /api/stats: ${statsResponse.status} - ${JSON.stringify(statsData)}</p>`;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                results.innerHTML += `<p>❌ Błąd: ${error.message}</p>`;
+            }
+        }
+        
+        // Uruchom test po załadowaniu strony
+        window.addEventListener('load', testAPI);
+    </script>
+</body>
+</html>

@@ -318,8 +318,17 @@ async function refreshStats() {
             // Aktualizuj statystyki Twitch
             document.getElementById('twitchFollowers').textContent = data.twitch.followers || 'N/A';
             document.getElementById('twitchSubs').textContent = data.twitch.subscribers || 'N/A';
-            document.getElementById('twitchVips').textContent = data.twitch.vips || 'N/A';
-            document.getElementById('twitchMods').textContent = data.twitch.moderators || 'N/A';
+            
+            // Aktualizuj liczby VIPów i moderatorów
+            const vipCount = Array.isArray(data.twitch.vips) ? data.twitch.vips.length : (data.twitch.vips || 0);
+            const modCount = Array.isArray(data.twitch.moderators) ? data.twitch.moderators.length : (data.twitch.moderators || 0);
+            
+            document.getElementById('twitchVips').textContent = vipCount;
+            document.getElementById('twitchMods').textContent = modCount;
+            
+            // Aktualizuj listy VIPów i moderatorów
+            updateUserList('vipList', data.twitch.vips, 'vip');
+            updateUserList('modList', data.twitch.moderators, 'mod');
             
             // Aktualizuj statystyki bazy danych
             document.getElementById('totalUsers').textContent = data.database.total_users || 'N/A';
@@ -329,6 +338,28 @@ async function refreshStats() {
     } catch (error) {
         console.error('Error refreshing stats:', error);
     }
+}
+
+// Funkcja do aktualizacji list użytkowników (VIPy, moderatorzy)
+function updateUserList(elementId, users, type) {
+    const listElement = document.getElementById(elementId);
+    
+    if (!listElement) return;
+    
+    if (!users || !Array.isArray(users) || users.length === 0) {
+        listElement.innerHTML = '<div class="no-users">Brak użytkowników</div>';
+        return;
+    }
+    
+    const badgeClass = type === 'vip' ? 'vip-badge' : 'mod-badge';
+    const icon = type === 'vip' ? '💎' : '🛡️';
+    
+    listElement.innerHTML = users.map(user => `
+        <div class="user-item">
+            <span class="badge ${badgeClass}">${icon}</span>
+            <span class="username">${user}</span>
+        </div>
+    `).join('');
 }
 
 function refreshStatus() {
@@ -376,6 +407,168 @@ function showTab(tabName) {
     // Specjalne akcje dla konkretnych zakładek
     if (tabName === 'logs') {
         refreshLogs();
+    }
+}
+
+// Funkcje zarządzania punktami użytkowników
+async function addUserPoints() {
+    const username = document.getElementById('addPointsUsername').value.trim();
+    const points = parseInt(document.getElementById('addPointsAmount').value);
+    
+    if (!username) {
+        showNotification('error', '❌ Wprowadź nazwę użytkownika');
+        return;
+    }
+    
+    if (!points || points <= 0) {
+        showNotification('error', '❌ Wprowadź prawidłową liczbę punktów');
+        return;
+    }
+    
+    if (!isConnected) {
+        showNotification('warning', '⚠️ Brak połączenia z serwerem');
+        return;
+    }
+    
+    showLoading();
+    addLog('info', `💰 Dodawanie ${points} punktów użytkownikowi ${username}...`);
+    
+    try {
+        const response = await fetch(`${serverUrl}/api/users/points/add`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                username: username,
+                points: points
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showNotification('success', `✅ ${result.message}`);
+            addLog('success', `✅ ${result.message} (łącznie: ${result.total_points})`);
+            
+            // Wyczyść formularz
+            document.getElementById('addPointsUsername').value = '';
+            document.getElementById('addPointsAmount').value = '';
+            
+            // Odśwież statystyki
+            await refreshAllData();
+        } else {
+            throw new Error(result.error || 'Nieznany błąd');
+        }
+    } catch (error) {
+        showNotification('error', `❌ Błąd: ${error.message}`);
+        addLog('error', `❌ Błąd dodawania punktów: ${error.message}`);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function removeUserPoints() {
+    const username = document.getElementById('removePointsUsername').value.trim();
+    const points = parseInt(document.getElementById('removePointsAmount').value) || 0;
+    
+    if (!username) {
+        showNotification('error', '❌ Wprowadź nazwę użytkownika');
+        return;
+    }
+    
+    if (!isConnected) {
+        showNotification('warning', '⚠️ Brak połączenia z serwerem');
+        return;
+    }
+    
+    const action = points === 0 ? 'wszystkich punktów' : `${points} punktów`;
+    
+    showLoading();
+    addLog('info', `💸 Usuwanie ${action} użytkownikowi ${username}...`);
+    
+    try {
+        const response = await fetch(`${serverUrl}/api/users/points/remove`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                username: username,
+                points: points
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            showNotification('success', `✅ ${result.message}`);
+            addLog('success', `✅ ${result.message} (pozostało: ${result.total_points})`);
+            
+            // Wyczyść formularz
+            document.getElementById('removePointsUsername').value = '';
+            document.getElementById('removePointsAmount').value = '';
+            
+            // Odśwież statystyki
+            await refreshAllData();
+        } else {
+            throw new Error(result.error || 'Nieznany błąd');
+        }
+    } catch (error) {
+        showNotification('error', `❌ Błąd: ${error.message}`);
+        addLog('error', `❌ Błąd usuwania punktów: ${error.message}`);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function searchUser() {
+    const username = document.getElementById('userSearch').value.trim();
+    const resultDiv = document.getElementById('userSearchResult');
+    
+    if (!username) {
+        showNotification('error', '❌ Wprowadź nazwę użytkownika');
+        return;
+    }
+    
+    if (!isConnected) {
+        resultDiv.innerHTML = '<div class="loading">⚠️ Brak połączenia z serwerem</div>';
+        return;
+    }
+    
+    resultDiv.innerHTML = '<div class="loading">🔍 Szukanie...</div>';
+    
+    try {
+        // Symulacja wyszukiwania - w rzeczywistości potrzebowałby endpoint do wyszukiwania
+        // Na razie pokażemy przykładowe dane
+        setTimeout(() => {
+            resultDiv.innerHTML = `
+                <div class="user-info">
+                    <h4>👤 ${username}</h4>
+                    <div class="stat-row">
+                        <span>💰 Punkty:</span>
+                        <span>1,234</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>💬 Wiadomości:</span>
+                        <span>567</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>📅 Ostatnio widziany:</span>
+                        <span>2024-01-15 14:30</span>
+                    </div>
+                    <div class="stat-row">
+                        <span>👥 Status:</span>
+                        <span>Follower</span>
+                    </div>
+                </div>
+            `;
+        }, 1000);
+        
+    } catch (error) {
+        resultDiv.innerHTML = `<div class="loading">❌ Błąd wyszukiwania: ${error.message}</div>`;
     }
 }
 
@@ -520,6 +713,18 @@ document.addEventListener('keydown', function(e) {
         }
     }
 });
+
+// 🔒 Funkcja wylogowania
+function logout() {
+    if (confirm('Czy na pewno chcesz się wylogować?')) {
+        // Usuń dane autoryzacji
+        localStorage.removeItem('kranikbot_auth');
+        sessionStorage.removeItem('kranikbot_auth');
+        
+        // Przekieruj do strony logowania
+        window.location.href = 'login.html';
+    }
+}
 
 // Inicjalizacja logów
 addLog('info', '🚀 Web Panel KranikBot uruchomiony');

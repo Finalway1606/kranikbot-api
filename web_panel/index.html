@@ -3,10 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🤖 KranikBot - Web Panel</title>
+    <title>KranikBot - Panel Kontrolny</title>
     <link rel="stylesheet" href="/web/styles.css">
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
     <script src="/web/config.js"></script>
+    <script>
+        // 🔒 Sprawdzenie autoryzacji przed załadowaniem panelu
+        document.addEventListener('DOMContentLoaded', function() {
+            const auth = localStorage.getItem('kranikbot_auth') || sessionStorage.getItem('kranikbot_auth');
+            if (!auth || auth !== 'kranikbot-admin-logged-in') {
+                // Brak autoryzacji - przekieruj do logowania
+                window.location.href = 'login.html';
+                return;
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="container">
@@ -19,6 +30,9 @@
                     <span class="status-indicator" id="statusIndicator"></span>
                     <span id="statusText">Łączenie...</span>
                 </div>
+                <button class="logout-btn" onclick="logout()" title="Wyloguj się">
+                    🚪 Wyloguj
+                </button>
             </div>
         </header>
 
@@ -116,6 +130,7 @@
         <section class="tabs-section">
             <div class="tabs">
                 <button class="tab-btn active" onclick="showTab('stats')">📊 Statystyki</button>
+                <button class="tab-btn" onclick="showTab('users')">👥 Zarządzanie Użytkownikami</button>
                 <button class="tab-btn" onclick="showTab('logs')">📝 Logi</button>
                 <button class="tab-btn" onclick="showTab('settings')">⚙️ Ustawienia</button>
             </div>
@@ -146,6 +161,22 @@
                     </div>
 
                     <div class="stats-card">
+                        <h3>💎 Lista VIP</h3>
+                        <div class="user-list" id="vipList">
+                            <div class="loading">Ładowanie...</div>
+                        </div>
+                    </div>
+
+                    <div class="stats-card">
+                        <h3>🛡️ Lista Moderatorów</h3>
+                        <div class="user-list" id="modList">
+                            <div class="loading">Ładowanie...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stats-card">
                         <h3>💾 Baza Danych</h3>
                         <div class="stats-list">
                             <div class="stat-row">
@@ -159,6 +190,60 @@
                             <div class="stat-row">
                                 <span>🏆 Top użytkownik:</span>
                                 <span id="topUser">Ładowanie...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Users Management Tab -->
+            <div class="tab-content" id="usersTab">
+                <div class="users-management">
+                    <div class="management-section">
+                        <h3>💰 Zarządzanie Punktami</h3>
+                        
+                        <!-- Dodawanie punktów -->
+                        <div class="action-card">
+                            <h4>➕ Dodaj Punkty</h4>
+                            <div class="form-group">
+                                <label for="addPointsUsername">Nazwa użytkownika:</label>
+                                <input type="text" id="addPointsUsername" placeholder="np. kranikuser" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="addPointsAmount">Liczba punktów:</label>
+                                <input type="number" id="addPointsAmount" placeholder="100" min="1" class="form-input">
+                            </div>
+                            <button class="btn btn-success" onclick="addUserPoints()">
+                                ➕ Dodaj Punkty
+                            </button>
+                        </div>
+
+                        <!-- Usuwanie punktów -->
+                        <div class="action-card">
+                            <h4>➖ Usuń Punkty</h4>
+                            <div class="form-group">
+                                <label for="removePointsUsername">Nazwa użytkownika:</label>
+                                <input type="text" id="removePointsUsername" placeholder="np. kranikuser" class="form-input">
+                            </div>
+                            <div class="form-group">
+                                <label for="removePointsAmount">Liczba punktów (0 = wszystkie):</label>
+                                <input type="number" id="removePointsAmount" placeholder="0" min="0" class="form-input">
+                            </div>
+                            <button class="btn btn-danger" onclick="removeUserPoints()">
+                                ➖ Usuń Punkty
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="management-section">
+                        <h3>📊 Podgląd Użytkowników</h3>
+                        <div class="user-preview">
+                            <div class="search-box">
+                                <input type="text" id="userSearch" placeholder="🔍 Szukaj użytkownika..." class="form-input">
+                                <button class="btn btn-primary" onclick="searchUser()">Szukaj</button>
+                            </div>
+                            <div id="userSearchResult" class="search-result">
+                                <!-- Wyniki wyszukiwania będą tutaj -->
                             </div>
                         </div>
                     </div>
@@ -233,6 +318,6 @@
     <!-- Notification Container -->
     <div class="notification-container" id="notificationContainer"></div>
 
-    <script src="/web/script.js"></script>
+    <script src="/web/script.js?t=2"></script>
 </body>
 </html>
