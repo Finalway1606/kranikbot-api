@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 import json
 import logging
 from pathlib import Path
+import requests
 
 # Konfiguracja logowania
 logging.basicConfig(level=logging.INFO)
@@ -299,21 +300,16 @@ def monitor_bots():
             for bot_type in ['twitch', 'discord']:
                 bot_info = bot_processes[bot_type]
                 
-                if bot_info['status'] == 'online':
-                    # Sprawdź czy proces nadal działa
-                    is_alive = False
-                    
-                    if bot_info['pid']:
-                        try:
-                            process = psutil.Process(bot_info['pid'])
-                            is_alive = process.is_running()
-                        except psutil.NoSuchProcess:
-                            pass
-                    
-                    elif bot_info['process']:
-                        is_alive = bot_info['process'].poll() is None
-                    
-                    if not is_alive:
+                if bot_info['status'] == 'online' and bot_info['pid']:
+                    # Sprawdź czy proces nadal istnieje
+                    try:
+                        process = psutil.Process(bot_info['pid'])
+                        if not process.is_running():
+                            safe_print(f"⚠️ {bot_type.title()} bot przestał działać")
+                            bot_processes[bot_type] = {
+                                'process': None, 'pid': None, 'start_time': None, 'status': 'offline'
+                            }
+                    except psutil.NoSuchProcess:
                         safe_print(f"⚠️ {bot_type.title()} bot przestał działać")
                         bot_processes[bot_type] = {
                             'process': None, 'pid': None, 'start_time': None, 'status': 'offline'
@@ -335,6 +331,26 @@ def monitor_bots():
         except Exception as e:
             safe_print(f"❌ Błąd monitorowania: {e}")
             time.sleep(10)
+
+def keep_alive_ping():
+    """Wewnętrzny ping co 10 minut aby serwer nie usypiał się na Render"""
+    while True:
+        try:
+            time.sleep(600)  # 10 minut
+            
+            # Ping do własnego endpointu /api/status
+            try:
+                response = requests.get('http://localhost:5000/api/status', timeout=5)
+                if response.status_code == 200:
+                    safe_print("🏓 Keep-alive ping: OK")
+                else:
+                    safe_print(f"🏓 Keep-alive ping: {response.status_code}")
+            except Exception as ping_error:
+                safe_print(f"🏓 Keep-alive ping error: {ping_error}")
+                
+        except Exception as e:
+            safe_print(f"❌ Błąd keep-alive: {e}")
+            time.sleep(60)
 
 # API Endpoints
 
@@ -504,6 +520,12 @@ def main():
     # Uruchom monitoring w tle
     monitor_thread = threading.Thread(target=monitor_bots, daemon=True)
     monitor_thread.start()
+    
+    # Uruchom keep-alive ping w tle (tylko na Render)
+    if os.getenv('RENDER'):
+        ping_thread = threading.Thread(target=keep_alive_ping, daemon=True)
+        ping_thread.start()
+        safe_print("🏓 Keep-alive ping uruchomiony (Render)")
     
     safe_print("🚀 Serwer uruchomiony!")
     safe_print("🌐 Web Panel: http://localhost:5000/web")
