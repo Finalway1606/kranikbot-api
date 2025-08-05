@@ -50,12 +50,18 @@ def safe_print(text):
 
 def check_auth(request):
     """Sprawdza autoryzację API"""
-    auth_header = request.headers.get('Authorization')
-    if not auth_header or not auth_header.startswith('Bearer '):
-        return False
+    # Sprawdź nagłówek X-API-Key
+    api_key = request.headers.get('X-API-Key')
+    if api_key:
+        return api_key == API_KEY
     
-    token = auth_header.split(' ')[1]
-    return token == API_KEY
+    # Fallback: sprawdź Authorization Bearer
+    auth_header = request.headers.get('Authorization')
+    if auth_header and auth_header.startswith('Bearer '):
+        token = auth_header.split(' ')[1]
+        return token == API_KEY
+    
+    return False
 
 def find_python_executable():
     """Znajduje python.exe w systemie"""
@@ -358,6 +364,8 @@ def api_test():
         'test': 'OK',
         'api_key': API_KEY
     })
+
+
 
 @app.route('/api/bots/status', methods=['GET'])
 def api_bots_status():
