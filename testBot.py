@@ -117,19 +117,40 @@ class TwitchBot:
                     open_browser=False  # Wyłączone dla serwera
                 )
                 
-                # Inicjalizacja Spotify z lepszą obsługą tokenów
-                token_info = self.sp_oauth.get_cached_token()
+                # Inicjalizacja Spotify z obsługą zmiennych środowiskowych dla serwera
+                token_info = None
+                
+                # Najpierw sprawdź zmienne środowiskowe (dla serwera)
+                spotify_access_token = os.getenv('SPOTIFY_ACCESS_TOKEN')
+                spotify_refresh_token = os.getenv('SPOTIFY_REFRESH_TOKEN')
+                spotify_expires_at = os.getenv('SPOTIFY_EXPIRES_AT')
+                
+                if spotify_access_token and spotify_refresh_token:
+                    safe_print(f"✅ Znaleziono tokeny Spotify w zmiennych środowiskowych")
+                    token_info = {
+                        'access_token': spotify_access_token,
+                        'refresh_token': spotify_refresh_token,
+                        'expires_at': int(spotify_expires_at) if spotify_expires_at else 0,
+                        'token_type': 'Bearer',
+                        'scope': 'user-modify-playback-state user-read-playback-state'
+                    }
+                else:
+                    # Jeśli nie ma zmiennych środowiskowych, sprawdź cache (lokalnie)
+                    token_info = self.sp_oauth.get_cached_token()
+                    if token_info:
+                        safe_print(f"✅ Znaleziono zapisane tokeny Spotify w cache")
+                
                 if token_info:
-                    safe_print(f"✅ Znaleziono zapisane tokeny Spotify")
                     self.token_info = token_info
                     self.sp = spotipy.Spotify(auth=token_info['access_token'])
                     self.spotify_enabled = True
                 else:
                     # Na serwerze nie próbujemy autoryzować - wymagamy wcześniej zapisanych tokenów
-                    safe_print(f"⚠️ Brak zapisanych tokenów Spotify")
-                    safe_print(f"🔧 Uruchom bota lokalnie raz aby autoryzować Spotify")
-                    safe_print(f"⚠️ Moduł Spotify będzie wyłączony na serwerze")
-                    raise Exception("Brak tokenów Spotify - wymagana autoryzacja lokalna")
+                    safe_print(f"⚠️ Brak tokenów Spotify")
+                    safe_print(f"🔧 Dla serwera: ustaw zmienne środowiskowe SPOTIFY_ACCESS_TOKEN, SPOTIFY_REFRESH_TOKEN, SPOTIFY_EXPIRES_AT")
+                    safe_print(f"🔧 Lokalnie: uruchom bota raz aby autoryzować Spotify")
+                    safe_print(f"⚠️ Moduł Spotify będzie wyłączony")
+                    raise Exception("Brak tokenów Spotify - wymagana konfiguracja")
                         
             except Exception as e:
                 safe_print(f"❌ Błąd autoryzacji Spotify: {e}")
@@ -225,7 +246,7 @@ class TwitchBot:
                 safe_print(f"🔄 Odświeżam token Spotify...")
                 self.token_info = self.sp_oauth.refresh_access_token(self.token_info['refresh_token'])
                 
-                # Zapisz odświeżony token do cache
+                # Zapisz odświeżony token do cache (lokalnie)
                 import json
                 cache_file = ".cache"
                 try:
@@ -234,6 +255,15 @@ class TwitchBot:
                     safe_print(f"💾 Zapisano odświeżony token do cache")
                 except Exception as cache_error:
                     safe_print(f"⚠️ Nie udało się zapisać tokenu do cache: {cache_error}")
+                
+                # Zaktualizuj zmienne środowiskowe (dla serwera)
+                try:
+                    os.environ['SPOTIFY_ACCESS_TOKEN'] = self.token_info['access_token']
+                    os.environ['SPOTIFY_REFRESH_TOKEN'] = self.token_info['refresh_token']
+                    os.environ['SPOTIFY_EXPIRES_AT'] = str(self.token_info['expires_at'])
+                    safe_print(f"🌐 Zaktualizowano zmienne środowiskowe Spotify")
+                except Exception as env_error:
+                    safe_print(f"⚠️ Nie udało się zaktualizować zmiennych środowiskowych: {env_error}")
                 
                 self.sp = spotipy.Spotify(auth=self.token_info['access_token'])
                 safe_print(f"✅ Token Spotify odświeżony i zapisany")
