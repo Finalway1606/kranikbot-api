@@ -234,6 +234,10 @@ class TwitchBot:
         # Uruchom monitor zmian w sklepie
         self.start_shop_monitor()
         
+        # Uruchom automatyczne odświeżanie tokenu Spotify
+        if self.spotify_enabled:
+            self.start_spotify_token_refresher()
+        
         # Zapisz początkowe dane do pliku dla web API
         self.save_bot_data()
 
@@ -250,32 +254,11 @@ class TwitchBot:
             if self.sp_oauth.is_token_expired(self.token_info):
                 safe_print(f"🔄 Odświeżam token Spotify...")
                 self.token_info = self.sp_oauth.refresh_access_token(self.token_info['refresh_token'])
-                
-                # Zapisz odświeżony token do cache (lokalnie)
-                import json
-                cache_file = ".cache"
-                try:
-                    with open(cache_file, 'w') as f:
-                        json.dump(self.token_info, f)
-                    safe_print(f"💾 Zapisano odświeżony token do cache")
-                except Exception as cache_error:
-                    safe_print(f"⚠️ Nie udało się zapisać tokenu do cache: {cache_error}")
-                
-                # Zaktualizuj zmienne środowiskowe (dla serwera)
-                try:
-                    os.environ['SPOTIFY_ACCESS_TOKEN'] = self.token_info['access_token']
-                    os.environ['SPOTIFY_REFRESH_TOKEN'] = self.token_info['refresh_token']
-                    os.environ['SPOTIFY_EXPIRES_AT'] = str(self.token_info['expires_at'])
-                    safe_print(f"🌐 Zaktualizowano zmienne środowiskowe Spotify")
-                except Exception as env_error:
-                    safe_print(f"⚠️ Nie udało się zaktualizować zmiennych środowiskowych: {env_error}")
-                
                 self.sp = spotipy.Spotify(auth=self.token_info['access_token'])
-                safe_print(f"✅ Token Spotify odświeżony i zapisany")
+                safe_print(f"✅ Token Spotify odświeżony (bez zapisywania plików)")
             return True
         except Exception as e:
             safe_print(f"❌ Błąd odświeżania tokenu Spotify: {e}")
-            self.spotify_enabled = False
             return False
 
     def on_connect(self, connection, event):
@@ -1615,6 +1598,29 @@ class TwitchBot:
         shop_thread = threading.Thread(target=shop_monitor_loop, daemon=True)
         shop_thread.start()
         safe_print(f"🛒 Monitor zmian w sklepie uruchomiony")
+
+    def start_spotify_token_refresher(self):
+        """Uruchamia automatyczne odświeżanie tokenu Spotify co 2 minuty"""
+        def spotify_refresher_loop():
+            # Pierwsze uruchomienie po 30 sekundach
+            time.sleep(30)
+            
+            while True:
+                try:
+                    if self.spotify_enabled and self.token_info:
+                        safe_print(f"🎵 Sprawdzam token Spotify...")
+                        self.ensure_token_valid()
+                    
+                    # Sprawdzaj co 2 minuty (120 sekund)
+                    time.sleep(120)
+                    
+                except Exception as e:
+                    safe_print(f"❌ Błąd automatycznego odświeżania Spotify: {e}")
+                    time.sleep(120)  # Spróbuj ponownie za 2 minuty
+        
+        spotify_thread = threading.Thread(target=spotify_refresher_loop, daemon=True)
+        spotify_thread.start()
+        safe_print(f"🎵 Automatyczne odświeżanie tokenu Spotify uruchomione (co 2 minuty)")
 
     def save_bot_data(self):
         """Zapisuje dane bota do pliku JSON dla web API"""
