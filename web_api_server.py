@@ -142,13 +142,13 @@ def start_bot(bot_type):
         # Znajdź python.exe
         python_executable = find_python_executable()
         
-        # Uruchom bota
+        # Uruchom bota - przekieruj output do konsoli głównej aby błędy były widoczne
         command = [python_executable, script_name]
         process = subprocess.Popen(
             command,
             cwd=os.getcwd(),
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=None,  # Przekieruj do konsoli głównej
+            stderr=None,  # Przekieruj do konsoli głównej
             text=True
         )
         
@@ -163,9 +163,8 @@ def start_bot(bot_type):
             safe_print(f"✅ {bot_type.title()} bot uruchomiony (PID: {process.pid})")
             return {'success': True, 'message': f'{bot_type.title()} bot uruchomiony pomyślnie'}
         else:
-            stdout, stderr = process.communicate()
-            error_msg = stderr if stderr else stdout
-            return {'success': False, 'error': f'Bot zakończył się z błędem: {error_msg[:500]}'}
+            safe_print(f"❌ {bot_type.title()} bot zakończył się natychmiast - sprawdź logi powyżej")
+            return {'success': False, 'error': f'Bot zakończył się natychmiast - sprawdź logi dla szczegółów'}
             
     except Exception as e:
         safe_print(f"❌ Błąd uruchamiania {bot_type} bota: {e}")
