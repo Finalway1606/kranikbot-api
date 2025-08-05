@@ -27,7 +27,7 @@ app = Flask(__name__)
 CORS(app)  # Umożliwia CORS dla wszystkich domen
 
 # Konfiguracja
-API_KEY = "kranikbot_2025_secure_key"  # W produkcji użyj zmiennej środowiskowej
+API_KEY = os.getenv('API_KEY', 'kranikbot-secure-key-2024')
 BOT_SCRIPT = "testBot.py"
 DISCORD_BOT_SCRIPT = "discord_bot_standalone.py"
 DB_PATH = "users.db"
