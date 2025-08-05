@@ -84,11 +84,8 @@ class TwitchBot:
             raise ValueError("TWITCH_TOKEN nie jest ustawiony w pliku .env")
         if not CHANNEL:
             raise ValueError("TWITCH_CHANNEL nie jest ustawiony w pliku .env")
-    
-    def get_channel_name(self):
-        """Zwraca poprawny format nazwy kanału z # na początku"""
-        return CHANNEL if CHANNEL.startswith('#') else f"#{CHANNEL}"
         
+        # Inicjalizacja IRC połączenia
         self.reactor = irc.client.Reactor()
         self.connection = self.reactor.server().connect(TWITCH_SERVER, TWITCH_PORT, NICKNAME, password=TOKEN)
         self.connection.add_global_handler("welcome", self.on_connect)
@@ -217,6 +214,10 @@ class TwitchBot:
         
         # Uruchom monitor zmian w sklepie
         self.start_shop_monitor()
+
+    def get_channel_name(self):
+        """Zwraca poprawny format nazwy kanału z # na początku"""
+        return CHANNEL if CHANNEL.startswith('#') else f"#{CHANNEL}"
 
     def ensure_token_valid(self):
         """Sprawdza i odświeża token Spotify jeśli to konieczne"""
@@ -924,6 +925,7 @@ class TwitchBot:
             
         try:
             message = random.choice(FOLLOW_THANKS_MESSAGES).format(username=username)
+            channel_name = self.get_channel_name()
             self.connection.privmsg(channel_name, message)
             # Powiadomienie Discord o nowym followerze
             self.discord.notify_new_follower(username)
@@ -1036,6 +1038,7 @@ class TwitchBot:
             
         try:
             message = random.choice(SUB_THANKS_MESSAGES).format(username=username)
+            channel_name = self.get_channel_name()
             self.connection.privmsg(channel_name, message)
             # Powiadomienie Discord o nowym subskrybencie
             self.discord.notify_new_subscriber(username)
@@ -1396,6 +1399,7 @@ class TwitchBot:
             time.sleep(15)
             
             while True:
+                channel_name = self.get_channel_name()
                 self.connection.privmsg(channel_name, ZBIORKA_MSG)
                 time.sleep(15)
                 self.connection.privmsg(channel_name, FOLLOW_MSG)
@@ -1511,6 +1515,7 @@ class TwitchBot:
                 try:
                     quiz_timeout_msg = self.games.check_quiz_timeout()
                     if quiz_timeout_msg:
+                        channel_name = self.get_channel_name()
                         self.connection.privmsg(channel_name, quiz_timeout_msg)
                     time.sleep(5)  # Sprawdzaj co 5 sekund
                 except Exception as e:
