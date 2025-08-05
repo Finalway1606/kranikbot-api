@@ -207,12 +207,17 @@ class TwitchBot:
         self.shop.initialize_shop_hash()
         safe_print(f"🔧 Zainicjalizowano hash rankingu i sklepu bez wysyłania wiadomości")
         
-        # Inicjalizacja Discord bot z slash commands
-        self.discord_bot = DiscordBot(self.db, self.discord, self.shop)
-        if self.discord_bot.start_bot():
-            safe_print(f"🤖 Discord bot z slash commands uruchomiony!")
+        # Inicjalizacja Discord bot z slash commands (opcjonalnie)
+        discord_auto_start = os.getenv('DISCORD_AUTO_START', 'false').lower() == 'true'
+        if discord_auto_start:
+            self.discord_bot = DiscordBot(self.db, self.discord, self.shop)
+            if self.discord_bot.start_bot():
+                safe_print(f"🤖 Discord bot z slash commands uruchomiony!")
+            else:
+                safe_print(f"⚠️ Discord bot z slash commands nie został uruchomiony")
         else:
-            safe_print(f"⚠️ Discord bot z slash commands nie został uruchomiony")
+            safe_print(f"⏸️ Discord bot nie został uruchomiony automatycznie (DISCORD_AUTO_START=false)")
+            self.discord_bot = None
         
         # Uruchom monitor statusu streama
         self.start_stream_monitor()
