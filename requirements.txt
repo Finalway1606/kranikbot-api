@@ -1,8 +1,0 @@
-irc
-spotipy
-python-dotenv
-requests
-discord.py
-psutil
-flask
-flask-cors
