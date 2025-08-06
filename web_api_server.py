@@ -603,6 +603,44 @@ def api_remove_points():
         safe_print(f"❌ Błąd usuwania punktów: {e}")
         return jsonify({'error': f'Błąd usuwania punktów: {str(e)}'}), 500
 
+@app.route('/api/users/ranking', methods=['GET'])
+def api_get_ranking():
+    """Pobiera ranking użytkowników"""
+    if not check_auth(request):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        # Pobierz limit z parametrów (domyślnie 20)
+        limit = request.args.get('limit', 20, type=int)
+        if limit > 50:  # Maksymalnie 50 użytkowników
+            limit = 50
+        
+        # Inicjalizuj bazę danych
+        db = UserDatabase()
+        
+        # Pobierz ranking
+        top_users = db.get_top_users(limit)
+        
+        # Formatuj dane
+        ranking = []
+        for i, (username, points, messages) in enumerate(top_users):
+            ranking.append({
+                'position': i + 1,
+                'username': username,
+                'points': points,
+                'messages': messages
+            })
+        
+        return jsonify({
+            'success': True,
+            'ranking': ranking,
+            'total_users': len(ranking)
+        })
+        
+    except Exception as e:
+        safe_print(f"❌ Błąd pobierania rankingu: {e}")
+        return jsonify({'error': f'Błąd pobierania rankingu: {str(e)}'}), 500
+
 @app.route('/favicon.ico')
 def favicon():
     """Serwuje favicon"""

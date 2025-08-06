@@ -289,3 +289,18 @@ class UserDatabase:
                 ''', (points, username))
                 
                 conn.commit()
+
+    def get_user_points(self, username):
+        """Pobiera punkty użytkownika"""
+        with self.lock:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                cursor.execute('SELECT points FROM users WHERE username = ?', (username,))
+                result = cursor.fetchone()
+                
+                if result:
+                    return result[0]
+                else:
+                    # Jeśli użytkownik nie istnieje, zwróć 0
+                    return 0
