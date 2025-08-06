@@ -6,3 +6,4 @@ discord.py
 psutil
 flask
 flask-cors
+gunicorn

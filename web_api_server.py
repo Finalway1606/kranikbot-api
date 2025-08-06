@@ -660,9 +660,10 @@ def index():
     </html>
     '''
 
-def main():
-    """Główna funkcja"""
-    safe_print("🌐 Uruchamianie KranikBot Web API Server...")
+# Inicjalizacja aplikacji przy starcie (dla Gunicorn)
+def init_app():
+    """Inicjalizuje aplikację przy starcie"""
+    safe_print("🌐 Inicjalizacja KranikBot Web API Server...")
     
     # Sprawdź czy pliki botów istnieją
     if not os.path.exists(BOT_SCRIPT):
@@ -692,14 +693,24 @@ def main():
         ping_thread.start()
         safe_print("🏓 Keep-alive ping uruchomiony (Render)")
     
-    safe_print("🚀 Serwer uruchomiony!")
+    safe_print("🚀 Aplikacja zainicjalizowana!")
+    safe_print(f"🔑 API Key: {API_KEY}")
+
+def main():
+    """Główna funkcja - tylko dla uruchamiania lokalnego"""
+    init_app()
+    
+    safe_print("🌐 Uruchamianie serwera deweloperskiego...")
     safe_print("🌐 Web Panel: http://localhost:5000/web")
     safe_print("📊 API Status: http://localhost:5000/api/status")
-    safe_print(f"🔑 API Key: {API_KEY}")
     
-    # Uruchom Flask (Railway używa zmiennej PORT)
+    # Uruchom Flask development server (tylko lokalnie)
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
+
+# Inicjalizuj aplikację przy imporcie (dla Gunicorn)
+if os.getenv('RENDER') or os.getenv('RAILWAY'):
+    init_app()
 
 if __name__ == '__main__':
     main()
