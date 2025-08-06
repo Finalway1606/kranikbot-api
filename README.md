@@ -1,54 +1,36 @@
-# 🚂 KranikBot Railway Deployment
+# 🤖 KranikBot Web Panel
 
-Backend API dla KranikBot Web Panel hostowany na Railway.app
+Nowoczesny panel kontrolny dla KranikBot - zarządzaj swoimi botami Twitch i Discord przez przeglądarkę!
 
-## 🚀 Funkcje
+## 🌟 Funkcje
 
-- **🌐 Web API**: RESTful API do kontroli botów
-- **🤖 Bot Management**: Uruchamianie/zatrzymywanie botów Twitch i Discord
-- **📊 Monitoring**: Status i statystyki w czasie rzeczywistym
-- **🔒 Bezpieczeństwo**: Autoryzacja przez API key
+- **🎮 Kontrola Botów**: Uruchamianie, zatrzymywanie i restart botów Twitch i Discord
+- **📊 Monitoring**: Śledzenie statusu, uptime i statystyk w czasie rzeczywistym  
+- **📱 Responsywny Design**: Działa na komputerach, tabletach i telefonach
+- **🔒 Bezpieczny**: Autoryzacja przez klucz API
+- **⚡ Szybki**: Nowoczesny interfejs z animacjami
 
-## 📁 Struktura
+## 🚀 Demo
 
-```
-├── web_api_server.py      # Główny serwer API
-├── testBot.py             # Bot Twitch
-├── discord_bot_standalone.py  # Bot Discord
-├── database.py            # Obsługa bazy danych
-├── web_panel/             # Pliki frontend
-├── requirements.txt       # Zależności Python
-├── Procfile              # Konfiguracja Railway
-└── runtime.txt           # Wersja Python
-```
+Ten panel działa w trybie demo - pokazuje przykładowe dane bez połączenia z prawdziwym API.
 
-## 🔧 Deployment na Railway
+## 🔧 Instalacja Lokalnie
 
-1. **Fork/Upload** tego repozytorium na GitHub
-2. **Połącz** Railway z GitHub
-3. **Deploy** z tego repozytorium
-4. **Ustaw zmienne środowiskowe** (opcjonalnie)
+1. Pobierz pliki KranikBot
+2. Uruchom `start_web_server.bat`
+3. Otwórz http://localhost:5000/web
 
-## 🌐 Endpoints
+## 📖 Dokumentacja
 
-- `GET /` - Strona główna
-- `GET /web` - Web Panel
-- `GET /api/status` - Status API
-- `GET /api/bots/status` - Status botów
-- `POST /api/action` - Akcje na botach
+Pełna dokumentacja dostępna w repozytorium głównym.
 
-## 🔑 API Key
+## 🎯 Technologie
 
-Domyślny klucz: `kranikbot_2025_secure_key`
-
-**⚠️ W produkcji ustaw zmienną środowiskową `API_KEY`**
-
-## 🎯 Użycie
-
-Po deployment URL będzie dostępny pod:
-- **API**: `https://twoja-app.railway.app/api/status`
-- **Web Panel**: `https://twoja-app.railway.app/web`
+- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
+- **Backend**: Python Flask
+- **Hosting**: GitHub Pages
+- **Design**: Modern UI/UX z gradientami i animacjami
 
 ---
 
-**🤖 KranikBot - Profesjonalne zarządzanie botami**
+**© 2025 KranikBot - Profesjonalne zarządzanie botami**

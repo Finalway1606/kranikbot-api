@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🤖 KranikBot - Web Panel</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🤖</text></svg>">
+    <script src="config.js"></script>
+    <script>
+        // Sprawdzenie autoryzacji - przekierowanie do logowania jeśli nie zalogowany
+        const auth = localStorage.getItem('kranikbot_auth') || sessionStorage.getItem('kranikbot_auth');
+        if (!auth || auth !== 'kranikbot-admin-logged-in') {
+            window.location.href = 'login.html';
+        }
+    </script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-content">
+                <h1 class="title">🤖 KRANIK BOT</h1>
+                <p class="subtitle">Web Panel Kontrolny</p>
+                <button class="logout-btn" onclick="logout()" title="Wyloguj się">
+                    🚪 Wyloguj
+                </button>
+                <div class="connection-status" id="connectionStatus">
+                    <span class="status-indicator" id="statusIndicator"></span>
+                    <span id="statusText">Łączenie...</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Bot Status Cards -->
+        <section class="status-section">
+            <div class="status-grid">
+                <div class="status-card twitch-card">
+                    <div class="card-header">
+                        <h3>📺 TWITCH BOT</h3>
+                        <div class="bot-status" id="twitchStatus">
+                            <span class="status-dot offline"></span>
+                            <span>Offline</span>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="stats">
+                            <div class="stat-item">
+                                <span class="stat-label">PID:</span>
+                                <span class="stat-value" id="twitchPid">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Uptime:</span>
+                                <span class="stat-value" id="twitchUptime">-</span>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-start" id="twitchStart" onclick="startTwitchBot()">
+                                🚀 WŁĄCZ
+                            </button>
+                            <button class="btn btn-stop" id="twitchStop" onclick="stopTwitchBot()">
+                                🛑 WYŁĄCZ
+                            </button>
+                            <button class="btn btn-restart" id="twitchRestart" onclick="restartTwitchBot()">
+                                🔄 RESTART
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="status-card discord-card">
+                    <div class="card-header">
+                        <h3>💬 DISCORD BOT</h3>
+                        <div class="bot-status" id="discordStatus">
+                            <span class="status-dot offline"></span>
+                            <span>Offline</span>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        <div class="stats">
+                            <div class="stat-item">
+                                <span class="stat-label">PID:</span>
+                                <span class="stat-value" id="discordPid">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Uptime:</span>
+                                <span class="stat-value" id="discordUptime">-</span>
+                            </div>
+                        </div>
+                        <div class="card-actions">
+                            <button class="btn btn-start" id="discordStart" onclick="startDiscordBot()">
+                                🚀 WŁĄCZ
+                            </button>
+                            <button class="btn btn-stop" id="discordStop" onclick="stopDiscordBot()">
+                                🛑 WYŁĄCZ
+                            </button>
+                            <button class="btn btn-restart" id="discordRestart" onclick="restartDiscordBot()">
+                                🔄 RESTART
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Actions -->
+        <section class="quick-actions">
+            <h2>⚡ Szybkie Akcje</h2>
+            <div class="action-grid">
+                <button class="action-btn" onclick="startAllBots()">
+                    🚀 Uruchom Wszystkie Boty
+                </button>
+                <button class="action-btn" onclick="stopAllBots()">
+                    🛑 Zatrzymaj Wszystkie Boty
+                </button>
+                <button class="action-btn" onclick="restartAllBots()">
+                    🔄 Restart Wszystkich Botów
+                </button>
+                <button class="action-btn" onclick="refreshStatus()">
+                    🔄 Odśwież Status
+                </button>
+            </div>
+        </section>
+
+        <!-- Tabs -->
+        <section class="tabs-section">
+            <div class="tabs">
+                <button class="tab-btn active" onclick="showTab('stats')">📊 Statystyki</button>
+                <button class="tab-btn" onclick="showTab('logs')">📝 Logi</button>
+                <button class="tab-btn" onclick="showTab('settings')">⚙️ Ustawienia</button>
+            </div>
+
+            <!-- Stats Tab -->
+            <div class="tab-content active" id="statsTab">
+                <div class="stats-grid">
+                    <div class="stats-card">
+                        <h3>📺 Twitch Stats</h3>
+                        <div class="stats-list">
+                            <div class="stat-row">
+                                <span>👥 Followerzy:</span>
+                                <span id="twitchFollowers">Ładowanie...</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>⭐ Subskrybenci:</span>
+                                <span id="twitchSubs">Ładowanie...</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>💎 VIP:</span>
+                                <span id="twitchVips">Ładowanie...</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>🛡️ Moderatorzy:</span>
+                                <span id="twitchMods">Ładowanie...</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stats-card">
+                        <h3>💾 Baza Danych</h3>
+                        <div class="stats-list">
+                            <div class="stat-row">
+                                <span>👤 Użytkownicy:</span>
+                                <span id="totalUsers">Ładowanie...</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>💰 Łączne punkty:</span>
+                                <span id="totalPoints">Ładowanie...</span>
+                            </div>
+                            <div class="stat-row">
+                                <span>🏆 Top użytkownik:</span>
+                                <span id="topUser">Ładowanie...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Tab -->
+            <div class="tab-content" id="logsTab">
+                <div class="logs-container">
+                    <div class="logs-header">
+                        <h3>📝 Logi Systemu</h3>
+                        <div class="logs-controls">
+                            <button class="btn btn-small" onclick="clearLogs()">🗑️ Wyczyść</button>
+                            <button class="btn btn-small" onclick="refreshLogs()">🔄 Odśwież</button>
+                        </div>
+                    </div>
+                    <div class="logs-content" id="logsContent">
+                        <div class="log-entry">
+                            <span class="log-time">[00:00:00]</span>
+                            <span class="log-message">🔗 Łączenie z serwerem...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div class="tab-content" id="settingsTab">
+                <div class="settings-grid">
+                    <div class="settings-card">
+                        <h3>🔗 Połączenie</h3>
+                        <div class="setting-item">
+                            <label for="serverUrl">URL Serwera:</label>
+                            <input type="text" id="serverUrl" placeholder="http://localhost:5000" value="http://localhost:5000">
+                        </div>
+                        <div class="setting-item">
+                            <label for="apiKey">Klucz API:</label>
+                            <input type="password" id="apiKey" placeholder="Wprowadź klucz API">
+                        </div>
+                        <button class="btn btn-primary" onclick="saveSettings()">💾 Zapisz Ustawienia</button>
+                    </div>
+
+                    <div class="settings-card">
+                        <h3>🔄 Auto-refresh</h3>
+                        <div class="setting-item">
+                            <label for="refreshInterval">Interwał odświeżania (sekundy):</label>
+                            <input type="number" id="refreshInterval" value="5" min="1" max="60">
+                        </div>
+                        <div class="setting-item">
+                            <label>
+                                <input type="checkbox" id="autoRefresh" checked>
+                                Automatyczne odświeżanie
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>&copy; 2025 KranikBot - Web Panel v1.0</p>
+            <p>Ostatnia aktualizacja: <span id="lastUpdate">-</span></p>
+        </footer>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <p>Przetwarzanie...</p>
+    </div>
+
+    <!-- Notification Container -->
+    <div class="notification-container" id="notificationContainer"></div>
+
+    <script src="script.js"></script>
+</body>
+</html>
