@@ -1,5 +1,6 @@
 import sqlite3
 import os
+import shutil
 from datetime import datetime, timedelta
 import threading
 
@@ -12,12 +13,67 @@ class UserDatabase:
     def get_connection(self):
         """Tworzy nowe połączenie z bazą danych"""
         conn = sqlite3.connect(self.db_path, timeout=10.0)
-        conn.execute('PRAGMA journal_mode=WAL')  # Lepsze współbieżne dostępy
+        conn.execute('PRAGMA journal_mode=DELETE')  # Unikanie problemów z synchronizacją WAL
+        conn.execute('PRAGMA synchronous=FULL')     # Pełna synchronizacja dla bezpieczeństwa danych
         return conn
+    
+    def _ensure_delete_mode(self):
+        """Wymusza tryb DELETE i usuwa pliki WAL jeśli istnieją"""
+        try:
+            # Usuń pliki WAL jeśli istnieją
+            wal_file = self.db_path + '-wal'
+            shm_file = self.db_path + '-shm'
+            
+            if os.path.exists(wal_file):
+                os.remove(wal_file)
+            if os.path.exists(shm_file):
+                os.remove(shm_file)
+                
+            # Wymuszenie trybu DELETE
+            with sqlite3.connect(self.db_path, timeout=10.0) as conn:
+                conn.execute('PRAGMA journal_mode=DELETE')
+                conn.execute('PRAGMA synchronous=FULL')
+                conn.commit()
+        except Exception as e:
+            print(f"Ostrzeżenie: Nie można wymusić trybu DELETE: {e}")
+    
+    def create_backup(self, reason="manual"):
+        """Tworzy backup bazy danych z timestampem"""
+        try:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_filename = f"users_backup_{timestamp}_{reason}.db"
+            
+            # Kopiuj bazę danych
+            shutil.copy2(self.db_path, backup_filename)
+            print(f"[BACKUP] Utworzono backup: {backup_filename}")
+            
+            # Usuń stare backupy (zachowaj tylko 5 najnowszych)
+            self._cleanup_old_backups()
+            
+            return backup_filename
+        except Exception as e:
+            print(f"[BACKUP] Błąd podczas tworzenia backupu: {e}")
+            return None
+    
+    def _cleanup_old_backups(self):
+        """Usuwa stare pliki backup, zachowując tylko 5 najnowszych"""
+        try:
+            backup_files = [f for f in os.listdir('.') if f.startswith('users_backup_') and f.endswith('.db')]
+            backup_files.sort(reverse=True)  # Najnowsze pierwsze
+            
+            # Usuń pliki starsze niż 5 najnowszych
+            for old_backup in backup_files[5:]:
+                os.remove(old_backup)
+                print(f"[BACKUP] Usunięto stary backup: {old_backup}")
+        except Exception as e:
+            print(f"[BACKUP] Błąd podczas czyszczenia starych backupów: {e}")
     
     def init_database(self):
         """Inicjalizuje bazę danych użytkowników"""
         with self.lock:
+            # Wymuszenie trybu DELETE i usunięcie plików WAL jeśli istnieją
+            self._ensure_delete_mode()
+            
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
@@ -78,12 +134,17 @@ class UserDatabase:
     
     def reset_all_points(self):
         """Resetuje punkty wszystkich użytkowników do 0"""
+        # Utwórz backup przed resetowaniem
+        self.create_backup("reset_all_points")
+        
         with self.lock:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
                 cursor.execute('UPDATE users SET points = 0')
                 affected_rows = cursor.rowcount
+                
+                print(f"[DB] Zresetowano punkty dla {affected_rows} użytkowników")
                 
                 conn.commit()
                 return affected_rows
@@ -118,6 +179,11 @@ class UserDatabase:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
+                # Sprawdź obecne punkty przed zmianą
+                cursor.execute('SELECT points FROM users WHERE username = ?', (username,))
+                result = cursor.fetchone()
+                old_points = result[0] if result else 0
+                
                 # Sprawdź czy użytkownik istnieje
                 cursor.execute('SELECT username FROM users WHERE username = ?', (username,))
                 if not cursor.fetchone():
@@ -126,6 +192,7 @@ class UserDatabase:
                         INSERT INTO users (username, points, messages_count, last_seen, first_seen, total_time_minutes, last_daily_bonus, first_message_bonus_received)
                         VALUES (?, ?, 0, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 0, NULL, 0)
                     ''', (username, points))
+                    print(f"[DB] Nowy użytkownik {username}: 0 -> {points} punktów")
                 else:
                     # Zaktualizuj istniejącego użytkownika
                     cursor.execute('''
@@ -133,6 +200,7 @@ class UserDatabase:
                         SET points = points + ?, last_seen = CURRENT_TIMESTAMP
                         WHERE username = ?
                     ''', (points, username))
+                    print(f"[DB] Dodano punkty {username}: {old_points} -> {old_points + points} (+{points})")
                 
                 conn.commit()
     
@@ -142,11 +210,19 @@ class UserDatabase:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
+                # Sprawdź obecne punkty przed zmianą
+                cursor.execute('SELECT points FROM users WHERE username = ?', (username,))
+                result = cursor.fetchone()
+                old_points = result[0] if result else 0
+                
                 cursor.execute('''
                     UPDATE users 
                     SET points = MAX(0, points - ?), last_seen = CURRENT_TIMESTAMP
                     WHERE username = ?
                 ''', (points, username))
+                
+                new_points = max(0, old_points - points)
+                print(f"[DB] Usunięto punkty {username}: {old_points} -> {new_points} (-{points})")
                 
                 conn.commit()
     
@@ -282,11 +358,18 @@ class UserDatabase:
             with self.get_connection() as conn:
                 cursor = conn.cursor()
                 
+                # Sprawdź obecne punkty przed zmianą
+                cursor.execute('SELECT points FROM users WHERE username = ?', (username,))
+                result = cursor.fetchone()
+                old_points = result[0] if result else 0
+                
                 cursor.execute('''
                     UPDATE users 
                     SET points = ?, last_seen = CURRENT_TIMESTAMP
                     WHERE username = ?
                 ''', (points, username))
+                
+                print(f"[DB] Ustawiono punkty {username}: {old_points} -> {points}")
                 
                 conn.commit()
 

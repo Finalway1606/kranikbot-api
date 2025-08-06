@@ -2,6 +2,7 @@ import sqlite3
 import threading
 import hashlib
 import json
+import shutil
 from datetime import datetime, timedelta
 from database import UserDatabase
 from discord_integration import DiscordIntegration
@@ -71,11 +72,38 @@ class Shop:
         }
         
         self.init_shop_database()
+        self._ensure_delete_mode()
+    
+    def _ensure_delete_mode(self):
+        """Wymusza tryb DELETE i usuwa pliki WAL"""
+        import os
+        
+        # Usuń pliki WAL jeśli istnieją
+        wal_file = f"{self.db_path}-wal"
+        shm_file = f"{self.db_path}-shm"
+        
+        try:
+            if os.path.exists(wal_file):
+                os.remove(wal_file)
+                print(f"Usunięto plik WAL: {wal_file}")
+            if os.path.exists(shm_file):
+                os.remove(shm_file)
+                print(f"Usunięto plik SHM: {shm_file}")
+        except Exception as e:
+            print(f"Błąd podczas usuwania plików WAL: {e}")
+        
+        # Wymuś tryb DELETE
+        with self.get_connection() as conn:
+            conn.execute('PRAGMA journal_mode=DELETE')
+            conn.execute('PRAGMA synchronous=FULL')
+            conn.commit()
+            print("Baza shop.db przełączona na tryb DELETE")
     
     def get_connection(self):
         """Tworzy nowe połączenie z bazą danych sklepu"""
         conn = sqlite3.connect(self.db_path, timeout=10.0)
-        conn.execute('PRAGMA journal_mode=WAL')
+        conn.execute('PRAGMA journal_mode=DELETE')
+        conn.execute('PRAGMA synchronous=FULL')
         return conn
     
     def init_shop_database(self):
