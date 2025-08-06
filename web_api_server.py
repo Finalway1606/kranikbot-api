@@ -564,11 +564,13 @@ def api_remove_points():
     data = request.get_json()
     username = data.get('username', '').strip()
     points = data.get('points', 0)
+    clear_all = data.get('clear_all', False)
     
     if not username:
         return jsonify({'error': 'Brak nazwy użytkownika'}), 400
     
-    if not isinstance(points, int) or points < 0:
+    # Jeśli clear_all jest True, ignorujemy wartość points
+    if not clear_all and (not isinstance(points, int) or points < 0):
         return jsonify({'error': 'Punkty muszą być liczbą większą lub równą 0'}), 400
     
     try:
@@ -578,7 +580,7 @@ def api_remove_points():
         # Pobierz aktualne punkty użytkownika
         current_points = db.get_user_points(username)
         
-        if points == 0:
+        if clear_all or points == 0:
             # Usuń wszystkie punkty
             db.set_user_points(username, 0)
             removed_points = current_points
