@@ -3,6 +3,7 @@ import os
 import shutil
 from datetime import datetime, timedelta
 import threading
+import glob
 
 class UserDatabase:
     def __init__(self, db_path="users.db"):
@@ -68,9 +69,41 @@ class UserDatabase:
         except Exception as e:
             print(f"[BACKUP] Błąd podczas czyszczenia starych backupów: {e}")
     
+    def _check_backup_integrity(self):
+        """Sprawdza czy pliki backup nie są nowsze niż aktualna baza (zabezpieczenie przed OneDrive)"""
+        try:
+            if not os.path.exists(self.db_path):
+                return True  # Brak bazy do sprawdzenia
+            
+            current_mtime = os.path.getmtime(self.db_path)
+            backup_files = glob.glob("users_backup_*.db")
+            
+            suspicious_backups = []
+            for backup_file in backup_files:
+                backup_mtime = os.path.getmtime(backup_file)
+                if backup_mtime > current_mtime:
+                    suspicious_backups.append(backup_file)
+            
+            if suspicious_backups:
+                print(f"[BACKUP] ⚠️  OSTRZEŻENIE: Znaleziono backupy nowsze niż aktualna baza!")
+                print(f"[BACKUP] To może oznaczać problem z synchronizacją OneDrive.")
+                for backup in suspicious_backups:
+                    backup_time = datetime.fromtimestamp(os.path.getmtime(backup))
+                    print(f"[BACKUP]   - {backup}: {backup_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                print(f"[BACKUP] Sprawdź czy OneDrive nie przywraca starszych wersji!")
+                return False
+            
+            return True
+        except Exception as e:
+            print(f"[BACKUP] Błąd podczas sprawdzania integralności: {e}")
+            return True  # Nie blokuj działania bota
+    
     def init_database(self):
         """Inicjalizuje bazę danych użytkowników"""
         with self.lock:
+            # Sprawdź integralność backupów (zabezpieczenie przed OneDrive)
+            self._check_backup_integrity()
+            
             # Wymuszenie trybu DELETE i usunięcie plików WAL jeśli istnieją
             self._ensure_delete_mode()
             

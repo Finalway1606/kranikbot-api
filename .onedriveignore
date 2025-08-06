@@ -1,0 +1,41 @@
+# Pliki bazy danych - nie synchronizuj z OneDrive
+*.db
+*.db-wal
+*.db-shm
+
+# Pliki backup
+*backup*.db
+
+# Cache i tymczasowe
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Logi
+*.log
+
+# Środowisko
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
