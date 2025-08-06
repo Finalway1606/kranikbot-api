@@ -876,9 +876,19 @@ class TwitchBot:
         current_set = set(current_followers)
         new_followers = current_set - self.last_followers
         
+        # Loguj aktualizację listy followerów
+        if len(new_followers) > 0:
+            safe_print(f"🆕 Nowi followerzy: {list(new_followers)}")
+        
         for follower in new_followers:
             self.thank_for_follow(follower)
             time.sleep(2)  # Odstęp między podziękowaniami
+        
+        # Sprawdź czy Sniffurious jest w aktualnej liście przed aktualizacją
+        if "sniffurious" in current_set:
+            safe_print(f"✅ SNIFFURIOUS w aktualnej liście followerów")
+        else:
+            safe_print(f"❌ SNIFFURIOUS BRAK w aktualnej liście followerów!")
         
         self.last_followers = current_set
         # Zapisz dane do pliku dla web API
@@ -939,6 +949,13 @@ class TwitchBot:
                 time.sleep(0.1)
             
             safe_print(f"📊 Pobrano {len(all_followers)} followerów (wszystkich)")
+            
+            # Sprawdź czy Sniffurious jest w liście
+            if "sniffurious" in all_followers:
+                safe_print(f"✅ SNIFFURIOUS znaleziony w API followerów")
+            else:
+                safe_print(f"❌ SNIFFURIOUS NIE ZNALEZIONY w API followerów!")
+            
             return all_followers
             
         except Exception as e:
@@ -1220,9 +1237,18 @@ class TwitchBot:
             all_users = self.db.get_all_users_with_points()
             cleared_count = 0
             
+            # Loguj liczbę followerów przed sprawdzaniem
+            safe_print(f"🔍 Sprawdzanie punktów - mamy {len(self.last_followers)} followerów w pamięci")
+            
             for user in all_users:
                 username = user[0]  # Pierwsza kolumna to username
                 current_points = user[1]  # Druga kolumna to points
+                
+                # Szczególne logowanie dla Sniffurious
+                if username.lower() == "sniffurious":
+                    is_follower_check = self.is_follower(username)
+                    safe_print(f"🔍 SNIFFURIOUS CHECK: is_follower={is_follower_check}, points={current_points}")
+                    safe_print(f"🔍 SNIFFURIOUS w last_followers: {'sniffurious' in self.last_followers}")
                 
                 # Sprawdź czy użytkownik jest followerem (pomijaj właściciela)
                 if not self.is_follower(username) and username.lower() != "kranik1606":
