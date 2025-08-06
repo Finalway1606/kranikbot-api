@@ -130,7 +130,6 @@
         <section class="tabs-section">
             <div class="tabs">
                 <button class="tab-btn active" onclick="showTab('stats')">📊 Statystyki</button>
-                <button class="tab-btn" onclick="showTab('ranking')">🏆 Ranking</button>
                 <button class="tab-btn" onclick="showTab('users')">👥 Zarządzanie Użytkownikami</button>
                 <button class="tab-btn" onclick="showTab('logs')">📝 Logi</button>
                 <button class="tab-btn" onclick="showTab('settings')">⚙️ Ustawienia</button>
@@ -193,29 +192,6 @@
                                 <span id="topUser">Ładowanie...</span>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Ranking Tab -->
-            <div class="tab-content" id="rankingTab">
-                <div class="ranking-container">
-                    <div class="ranking-header">
-                        <h3>🏆 Ranking Użytkowników</h3>
-                        <div class="ranking-controls">
-                            <button class="btn btn-primary" onclick="refreshRanking()">🔄 Odśwież Ranking</button>
-                            <select id="rankingLimit" class="form-input" style="width: auto; margin-left: 10px;">
-                                <option value="10">Top 10</option>
-                                <option value="20" selected>Top 20</option>
-                                <option value="50">Top 50</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="ranking-content" id="rankingContent">
-                        <div class="loading">🔄 Ładowanie rankingu...</div>
-                    </div>
-                    <div class="ranking-info">
-                        <small>Ostatnie odświeżenie: <span id="rankingLastUpdate">-</span></small>
                     </div>
                 </div>
             </div>
