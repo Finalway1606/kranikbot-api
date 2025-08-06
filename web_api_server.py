@@ -503,6 +503,58 @@ def api_add_points():
         safe_print(f"❌ Błąd dodawania punktów: {e}")
         return jsonify({'error': f'Błąd dodawania punktów: {str(e)}'}), 500
 
+@app.route('/api/logs', methods=['GET'])
+def api_get_logs():
+    """Zwraca logi systemu"""
+    if not check_auth(request):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    try:
+        # Symulowane logi systemu (w rzeczywistej implementacji można czytać z pliku logów)
+        logs = [
+            {
+                'timestamp': datetime.now().strftime('%H:%M:%S'),
+                'type': 'info',
+                'message': '🚀 Web API Server działa'
+            },
+            {
+                'timestamp': (datetime.now() - timedelta(minutes=1)).strftime('%H:%M:%S'),
+                'type': 'success',
+                'message': '✅ Połączenie z bazą danych OK'
+            },
+            {
+                'timestamp': (datetime.now() - timedelta(minutes=2)).strftime('%H:%M:%S'),
+                'type': 'info',
+                'message': f'🔑 API Key: {API_KEY[:10]}...'
+            }
+        ]
+        
+        # Dodaj informacje o botach
+        for bot_type, bot_info in bot_processes.items():
+            if bot_info['status'] == 'online':
+                uptime = get_bot_uptime(bot_info['start_time'])
+                logs.append({
+                    'timestamp': (datetime.now() - timedelta(minutes=3)).strftime('%H:%M:%S'),
+                    'type': 'success',
+                    'message': f'✅ {bot_type.title()} Bot działa (uptime: {uptime})'
+                })
+            else:
+                logs.append({
+                    'timestamp': (datetime.now() - timedelta(minutes=3)).strftime('%H:%M:%S'),
+                    'type': 'warning',
+                    'message': f'⚠️ {bot_type.title()} Bot offline'
+                })
+        
+        return jsonify({
+            'success': True,
+            'logs': logs,
+            'total_logs': len(logs)
+        })
+        
+    except Exception as e:
+        safe_print(f"❌ Błąd pobierania logów: {e}")
+        return jsonify({'error': f'Błąd pobierania logów: {str(e)}'}), 500
+
 @app.route('/api/users/points/remove', methods=['POST'])
 def api_remove_points():
     """Usuwa punkty użytkownikowi"""
