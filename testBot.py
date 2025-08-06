@@ -169,6 +169,10 @@ class TwitchBot:
         self.last_subscribers = set()
         self.check_subscribers_thread = None
         
+        # Reminders tracking
+        self.reminders_enabled = True
+        self.reminder_thread = None
+        
         # Dynamiczne listy uprawnień
         self.moderators = set()
         self.vips = set()
@@ -660,6 +664,25 @@ class TwitchBot:
                 connection.privmsg(channel_name, f"🌟 @{username} włączył automatyczne dziękowanie za suby.")
             else:
                 connection.privmsg(channel_name, f"❌ @{username}, brak uprawnień do włączenia subów.")
+            return
+
+        # === KOMENDY REMINDERÓW ===
+        elif message == "!remindersoff":
+            if username in self.trusted_users:
+                self.reminders_enabled = False
+                connection.privmsg(channel_name, f"🔇 @{username} wyłączył automatyczne przypomnienia.")
+            else:
+                connection.privmsg(channel_name, f"❌ @{username}, brak uprawnień do wyłączenia reminderów.")
+            return
+
+        elif message == "!reminderson":
+            if username in self.trusted_users:
+                self.reminders_enabled = True
+                if not self.reminder_thread or not self.reminder_thread.is_alive():
+                    self.start_reminder()
+                connection.privmsg(channel_name, f"📢 @{username} włączył automatyczne przypomnienia.")
+            else:
+                connection.privmsg(channel_name, f"❌ @{username}, brak uprawnień do włączenia reminderów.")
             return
 
         elif message == "!subs":
@@ -1465,20 +1488,36 @@ class TwitchBot:
             time.sleep(15)
             
             while True:
+                if not self.reminders_enabled:
+                    time.sleep(60)  # Sprawdzaj co minutę czy remindery zostały włączone
+                    continue
+                    
                 channel_name = self.get_channel_name()
                 self.connection.privmsg(channel_name, ZBIORKA_MSG)
                 time.sleep(15)
+                
+                if not self.reminders_enabled:
+                    continue
                 self.connection.privmsg(channel_name, FOLLOW_MSG)
                 time.sleep(600)
+                
+                if not self.reminders_enabled:
+                    continue
                 self.connection.privmsg(channel_name, DISCORD_MSG)
                 time.sleep(900)
+                
+                if not self.reminders_enabled:
+                    continue
                 self.connection.privmsg(channel_name, PRIME_MSG)
                 time.sleep(0)
+                
+                if not self.reminders_enabled:
+                    continue
                 self.connection.privmsg(channel_name, BITS_MSG)
                 time.sleep(1800)
 
-        thread = threading.Thread(target=reminder_loop, daemon=True)
-        thread.start()
+        self.reminder_thread = threading.Thread(target=reminder_loop, daemon=True)
+        self.reminder_thread.start()
 
     # === MONITOROWANIE STATUSU STREAMA ===
     def start_stream_monitor(self):
