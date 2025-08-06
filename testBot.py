@@ -178,20 +178,38 @@ class TwitchBot:
         self.allowed_skip = {"kranik1606"}   # Właściciel zawsze może skipować
         
         # Sprawdź konfigurację Twitch API
-        if not os.getenv('TWITCH_CLIENT_ID') or not os.getenv('TWITCH_ACCESS_TOKEN'):
+        twitch_client_id = os.getenv('TWITCH_CLIENT_ID')
+        twitch_access_token = os.getenv('TWITCH_ACCESS_TOKEN')
+        
+        # Debug logi
+        safe_print(f"🔍 DEBUG: TWITCH_CLIENT_ID = {'***' + twitch_client_id[-4:] if twitch_client_id else 'BRAK'}")
+        safe_print(f"🔍 DEBUG: TWITCH_ACCESS_TOKEN = {'***' + twitch_access_token[-4:] if twitch_access_token else 'BRAK'}")
+        
+        if not twitch_client_id or not twitch_access_token:
             safe_print(f"⚠️  Brak konfiguracji Twitch API - funkcje followów i subów wyłączone")
             safe_print(f"📖 Zobacz plik TWITCH_API_SETUP.md dla instrukcji")
             self.follow_thanks_enabled = False
             self.sub_thanks_enabled = False
         else:
+            safe_print(f"✅ Konfiguracja Twitch API znaleziona - followsy i suby będą włączone")
             # Uruchom pierwsze pobieranie uprawnień
             self.update_permissions_on_startup()
         
         # Uruchom sprawdzanie followów i subów
+        safe_print(f"🔍 DEBUG: follow_thanks_enabled = {self.follow_thanks_enabled}")
+        safe_print(f"🔍 DEBUG: sub_thanks_enabled = {self.sub_thanks_enabled}")
+        
         if self.follow_thanks_enabled:
             self.start_follow_checker()
+            safe_print(f"✅ Automatyczne dziękowanie za followy WŁĄCZONE")
+        else:
+            safe_print(f"❌ Automatyczne dziękowanie za followy WYŁĄCZONE")
+            
         if self.sub_thanks_enabled:
             self.start_subscription_checker()
+            safe_print(f"✅ Automatyczne dziękowanie za suby WŁĄCZONE")
+        else:
+            safe_print(f"❌ Automatyczne dziękowanie za suby WYŁĄCZONE")
         
         # Inicjalizacja systemu gier i bazy danych
         self.db = UserDatabase()
