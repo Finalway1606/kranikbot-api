@@ -48,22 +48,36 @@ const ENVIRONMENTS = {
 // 🔧 Automatyczne wykrywanie środowiska
 function detectEnvironment() {
     const hostname = window.location.hostname;
+    const port = window.location.port;
     
+    console.log(`🔍 Wykrywanie środowiska:`);
+    console.log(`   Hostname: ${hostname}`);
+    console.log(`   Port: ${port}`);
+    console.log(`   Full URL: ${window.location.href}`);
+    
+    // Wymuś lokalne środowisko dla localhost
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        console.log(`✅ Wykryto lokalne środowisko`);
         return 'local';
     } else if (hostname.includes('onrender.com')) {
+        console.log(`✅ Wykryto środowisko Render.com`);
         return 'render';
     } else if (hostname.includes('github.io')) {
+        console.log(`✅ Wykryto GitHub Pages`);
         // Sprawdź czy backend jest dostępny
         return 'github_heroku'; // lub 'github_railway' lub 'demo'
     } else {
+        console.log(`⚠️ Nieznane środowisko, używam lokalnego`);
         return 'local';
     }
 }
 
 // 📝 Eksportuj konfigurację dla aktualnego środowiska
-const CURRENT_ENV = detectEnvironment();
+// TYMCZASOWE WYMUSZENIE LOKALNEGO ŚRODOWISKA
+const CURRENT_ENV = 'local'; // detectEnvironment();
 const KRANIKBOT_CONFIG = ENVIRONMENTS[CURRENT_ENV];
+
+console.log(`🔧 WYMUSZONO LOKALNE ŚRODOWISKO!`);
 
 // 🔍 Debug info
 console.log(`🌐 KranikBot Web Panel`);

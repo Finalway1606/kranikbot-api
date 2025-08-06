@@ -19,6 +19,7 @@ import json
 import logging
 from pathlib import Path
 import requests
+from database import UserDatabase
 
 # Konfiguracja logowania
 logging.basicConfig(level=logging.INFO)
@@ -446,8 +447,8 @@ def api_stats():
         'twitch': {
             'followers': len(bot_data.get('followers', [])),
             'subscribers': len(bot_data.get('subscribers', [])),
-            'vips': len(bot_data.get('vips', [])),
-            'moderators': len(bot_data.get('moderators', [])),
+            'vips': bot_data.get('vips', []),  # Zwracamy listę VIPów
+            'moderators': bot_data.get('moderators', []),  # Zwracamy listę moderatorów
             'trusted_users': len(bot_data.get('trusted_users', [])),
             'spotify_enabled': bot_data.get('spotify_enabled', False)
         },
@@ -458,6 +459,108 @@ def api_stats():
         'last_updated': bot_data.get('last_updated')
     })
 
+@app.route('/api/users/points/add', methods=['POST'])
+def api_add_points():
+    """Dodaje punkty użytkownikowi"""
+    if not check_auth(request):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    username = data.get('username', '').strip()
+    points = data.get('points', 0)
+    
+    if not username:
+        return jsonify({'error': 'Brak nazwy użytkownika'}), 400
+    
+    if not isinstance(points, int) or points <= 0:
+        return jsonify({'error': 'Punkty muszą być liczbą większą od 0'}), 400
+    
+    try:
+        # Inicjalizuj bazę danych
+        db = UserDatabase()
+        
+        # Dodaj punkty
+        db.add_points(username, points, is_follower=True)
+        
+        # Pobierz aktualne punkty użytkownika
+        current_points = db.get_user_points(username)
+        
+        safe_print(f"✅ Dodano {points} punktów użytkownikowi {username} (łącznie: {current_points})")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Dodano {points} punktów użytkownikowi {username}',
+            'username': username,
+            'points_added': points,
+            'total_points': current_points
+        })
+        
+    except Exception as e:
+        safe_print(f"❌ Błąd dodawania punktów: {e}")
+        return jsonify({'error': f'Błąd dodawania punktów: {str(e)}'}), 500
+
+@app.route('/api/users/points/remove', methods=['POST'])
+def api_remove_points():
+    """Usuwa punkty użytkownikowi"""
+    if not check_auth(request):
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    username = data.get('username', '').strip()
+    points = data.get('points', 0)
+    
+    if not username:
+        return jsonify({'error': 'Brak nazwy użytkownika'}), 400
+    
+    if not isinstance(points, int) or points < 0:
+        return jsonify({'error': 'Punkty muszą być liczbą większą lub równą 0'}), 400
+    
+    try:
+        # Inicjalizuj bazę danych
+        db = UserDatabase()
+        
+        # Pobierz aktualne punkty użytkownika
+        current_points = db.get_user_points(username)
+        
+        if points == 0:
+            # Usuń wszystkie punkty
+            db.set_user_points(username, 0)
+            removed_points = current_points
+            final_points = 0
+            safe_print(f"✅ Usunięto wszystkie punkty użytkownikowi {username} ({removed_points} punktów)")
+        else:
+            # Usuń konkretną liczbę punktów
+            db.remove_points(username, points)
+            final_points = db.get_user_points(username)
+            removed_points = current_points - final_points
+            safe_print(f"✅ Usunięto {removed_points} punktów użytkownikowi {username} (pozostało: {final_points})")
+        
+        return jsonify({
+            'success': True,
+            'message': f'Usunięto {removed_points} punktów użytkownikowi {username}',
+            'username': username,
+            'points_removed': removed_points,
+            'total_points': final_points
+        })
+        
+    except Exception as e:
+        safe_print(f"❌ Błąd usuwania punktów: {e}")
+        return jsonify({'error': f'Błąd usuwania punktów: {str(e)}'}), 500
+
+@app.route('/favicon.ico')
+def favicon():
+    """Serwuje favicon"""
+    # Sprawdź czy favicon istnieje w web_panel
+    web_dir = os.path.join(os.path.dirname(__file__), 'web_panel')
+    favicon_path = os.path.join(web_dir, 'favicon.ico')
+    
+    if os.path.exists(favicon_path):
+        return send_from_directory(web_dir, 'favicon.ico')
+    else:
+        # Fallback do głównego katalogu projektu
+        parent_dir = os.path.dirname(os.path.dirname(__file__))
+        return send_from_directory(parent_dir, 'kranikbot_icon.ico')
+
 @app.route('/web', defaults={'path': ''})
 @app.route('/web/<path:path>')
 def serve_web_panel(path):
@@ -465,7 +568,8 @@ def serve_web_panel(path):
     if path == '':
         path = 'index.html'
     
-    web_dir = os.path.join(os.getcwd(), 'web_panel')
+    # Serwuj z katalogu render_deploy/web_panel
+    web_dir = os.path.join(os.path.dirname(__file__), 'web_panel')
     return send_from_directory(web_dir, path)
 
 @app.route('/')
