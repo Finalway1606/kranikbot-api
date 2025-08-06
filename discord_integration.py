@@ -393,11 +393,15 @@ class DiscordIntegration:
     
 
     
-    def update_leaderboard_async(self, user_database):
+    def update_leaderboard_async(self, user_database, update_hash_after=True):
         """Wrapper do uruchamiania aktualizacji rankingu w osobnym wątku"""
         def run_async():
             try:
-                asyncio.run(self.update_leaderboard_channel(user_database))
+                result = asyncio.run(self.update_leaderboard_channel(user_database))
+                # Aktualizuj hash po udanej aktualizacji Discord
+                if result and update_hash_after:
+                    self.last_leaderboard_hash = self.get_leaderboard_hash(user_database)
+                    safe_print("🔄 Hash rankingu zaktualizowany po udanej aktualizacji Discord")
             except Exception as e:
                 safe_print(f"❌ Błąd async aktualizacji rankingu: {e}")
         
@@ -408,15 +412,15 @@ class DiscordIntegration:
         """Aktualizuje ranking na Discord tylko jeśli coś się zmieniło"""
         if self.check_leaderboard_changes(user_database):
             safe_print("🔄 Wykryto zmiany w rankingu - aktualizuję Discord...")
-            self.update_leaderboard_async(user_database)
+            # Hash już zaktualizowany w check_leaderboard_changes, nie aktualizuj ponownie
+            self.update_leaderboard_async(user_database, update_hash_after=False)
         else:
             safe_print("ℹ️ Brak zmian w rankingu - nie aktualizuję Discord")
     
     def force_update_leaderboard(self, user_database):
         """Wymusza aktualizację rankingu na Discord"""
         safe_print("🔄 Wymuszam aktualizację rankingu na Discord...")
-        # Zaktualizuj hash przed wymuszeniem
-        self.last_leaderboard_hash = self.get_leaderboard_hash(user_database)
+        # NIE aktualizuj hash przed wymuszeniem - pozwól automatycznemu systemowi wykryć zmiany
         self.update_leaderboard_async(user_database)
     
     async def clear_discord_channel(self, channel_id: str, requester_username: str = "Admin"):
