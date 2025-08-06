@@ -333,29 +333,7 @@ def monitor_bots():
             safe_print(f"❌ Błąd monitorowania: {e}")
             time.sleep(10)
 
-def keep_alive_ping():
-    """Wewnętrzny ping co 10 minut aby serwer nie usypiał się na Render"""
-    # Pobierz port z zmiennej środowiskowej
-    port = int(os.environ.get('PORT', 5000))
-    ping_url = f'http://localhost:{port}/api/status'
-    
-    while True:
-        try:
-            time.sleep(600)  # 10 minut
-            
-            # Ping do własnego endpointu /api/status
-            try:
-                response = requests.get(ping_url, timeout=5)
-                if response.status_code == 200:
-                    safe_print("🏓 Keep-alive ping: OK")
-                else:
-                    safe_print(f"🏓 Keep-alive ping: {response.status_code}")
-            except Exception as ping_error:
-                safe_print(f"🏓 Keep-alive ping error: {ping_error}")
-                
-        except Exception as e:
-            safe_print(f"❌ Błąd keep-alive: {e}")
-            time.sleep(60)
+
 
 # API Endpoints
 
@@ -726,12 +704,6 @@ def init_app():
     # Uruchom monitoring w tle
     monitor_thread = threading.Thread(target=monitor_bots, daemon=True)
     monitor_thread.start()
-    
-    # Uruchom keep-alive ping w tle (tylko na Render)
-    if os.getenv('RENDER'):
-        ping_thread = threading.Thread(target=keep_alive_ping, daemon=True)
-        ping_thread.start()
-        safe_print("🏓 Keep-alive ping uruchomiony (Render)")
     
     safe_print("🚀 Aplikacja zainicjalizowana!")
     safe_print(f"🔑 API Key: {API_KEY}")

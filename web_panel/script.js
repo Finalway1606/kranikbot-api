@@ -38,6 +38,17 @@ function setupEventListeners() {
             startAutoRefresh();
         }
     });
+
+    // Ranking limit change
+    const rankingLimit = document.getElementById('rankingLimit');
+    if (rankingLimit) {
+        rankingLimit.addEventListener('change', function() {
+            // Auto-refresh ranking when limit changes
+            if (document.getElementById('rankingTab').classList.contains('active')) {
+                refreshRanking();
+            }
+        });
+    }
 }
 
 // Zarządzanie połączeniem z serwerem
@@ -407,6 +418,8 @@ function showTab(tabName) {
     // Specjalne akcje dla konkretnych zakładek
     if (tabName === 'logs') {
         refreshLogs();
+    } else if (tabName === 'ranking') {
+        refreshRanking();
     }
 }
 
@@ -723,6 +736,103 @@ function logout() {
         
         // Przekieruj do strony logowania
         window.location.href = 'login.html';
+    }
+}
+
+// Funkcje rankingu
+async function refreshRanking() {
+    const rankingContent = document.getElementById('rankingContent');
+    const rankingLastUpdate = document.getElementById('rankingLastUpdate');
+    const limit = document.getElementById('rankingLimit').value;
+    
+    if (!isConnected) {
+        showNotification('warning', '⚠️ Brak połączenia z serwerem');
+        return;
+    }
+    
+    // Pokaż komunikat o odświeżaniu
+    rankingContent.innerHTML = '<div class="loading">🔄 Odświeżanie rankingu...</div>';
+    addLog('info', '🏆 Odświeżanie rankingu użytkowników...');
+    
+    try {
+        const response = await fetch(`${serverUrl}/api/users/ranking?limit=${limit}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            if (data.success && data.ranking && data.ranking.length > 0) {
+                // Pokaż komunikat sukcesu
+                const successMessage = document.createElement('div');
+                successMessage.className = 'ranking-success';
+                successMessage.textContent = `✅ Ranking odświeżony pomyślnie! Znaleziono ${data.ranking.length} użytkowników.`;
+                
+                // Utwórz tabelę rankingu
+                const tableHTML = `
+                    <table class="ranking-table">
+                        <thead>
+                            <tr>
+                                <th>Pozycja</th>
+                                <th>Użytkownik</th>
+                                <th>Punkty</th>
+                                <th>Wiadomości</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.ranking.map(user => {
+                                let positionClass = 'ranking-position';
+                                if (user.position === 1) positionClass += ' top-1';
+                                else if (user.position === 2) positionClass += ' top-2';
+                                else if (user.position === 3) positionClass += ' top-3';
+                                
+                                return `
+                                    <tr>
+                                        <td class="${positionClass}">${user.position}</td>
+                                        <td class="ranking-username">${user.username}</td>
+                                        <td class="ranking-points">${user.points.toLocaleString()}</td>
+                                        <td class="ranking-messages">${user.messages}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+                rankingContent.innerHTML = '';
+                rankingContent.appendChild(successMessage);
+                rankingContent.innerHTML += tableHTML;
+                
+                // Usuń komunikat sukcesu po 3 sekundach
+                setTimeout(() => {
+                    if (successMessage.parentNode) {
+                        successMessage.remove();
+                    }
+                }, 3000);
+                
+                // Aktualizuj czas ostatniego odświeżenia
+                rankingLastUpdate.textContent = new Date().toLocaleTimeString();
+                
+                showNotification('success', `✅ Ranking odświeżony! Pokazano top ${data.ranking.length} użytkowników`);
+                addLog('success', `✅ Ranking odświeżony pomyślnie (${data.ranking.length} użytkowników)`);
+                
+            } else {
+                rankingContent.innerHTML = '<div class="ranking-empty">📭 Brak użytkowników w rankingu</div>';
+                showNotification('info', 'ℹ️ Brak użytkowników w rankingu');
+                addLog('info', 'ℹ️ Ranking jest pusty');
+            }
+        } else {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+    } catch (error) {
+        rankingContent.innerHTML = `<div class="ranking-empty">❌ Błąd ładowania rankingu: ${error.message}</div>`;
+        showNotification('error', `❌ Błąd odświeżania rankingu: ${error.message}`);
+        addLog('error', `❌ Błąd odświeżania rankingu: ${error.message}`);
     }
 }
 

@@ -762,6 +762,118 @@ body {
     padding: 20px;
 }
 
+/* Ranking Styles */
+.ranking-container {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ranking-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.ranking-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.ranking-content {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 8px;
+    padding: 15px;
+    min-height: 400px;
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.ranking-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.ranking-table th,
+.ranking-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.ranking-table th {
+    background: rgba(79, 195, 247, 0.1);
+    color: #4fc3f7;
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+}
+
+.ranking-table tr:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.ranking-position {
+    font-weight: bold;
+    color: #4fc3f7;
+    width: 60px;
+}
+
+.ranking-position.top-1 {
+    color: #ffd700;
+}
+
+.ranking-position.top-2 {
+    color: #c0c0c0;
+}
+
+.ranking-position.top-3 {
+    color: #cd7f32;
+}
+
+.ranking-username {
+    font-weight: 500;
+}
+
+.ranking-points {
+    color: #00d084;
+    font-weight: 600;
+}
+
+.ranking-messages {
+    color: #666;
+}
+
+.ranking-info {
+    margin-top: 15px;
+    text-align: center;
+    color: #666;
+}
+
+.ranking-empty {
+    text-align: center;
+    color: #666;
+    padding: 40px;
+    font-style: italic;
+}
+
+.ranking-success {
+    background: rgba(0, 208, 132, 0.1);
+    border: 1px solid rgba(0, 208, 132, 0.3);
+    color: #00d084;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    text-align: center;
+    font-weight: 500;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .container {
