@@ -335,13 +335,17 @@ def monitor_bots():
 
 def keep_alive_ping():
     """Wewnętrzny ping co 10 minut aby serwer nie usypiał się na Render"""
+    # Pobierz port z zmiennej środowiskowej
+    port = int(os.environ.get('PORT', 5000))
+    ping_url = f'http://localhost:{port}/api/status'
+    
     while True:
         try:
             time.sleep(600)  # 10 minut
             
             # Ping do własnego endpointu /api/status
             try:
-                response = requests.get('http://localhost:5000/api/status', timeout=5)
+                response = requests.get(ping_url, timeout=5)
                 if response.status_code == 200:
                     safe_print("🏓 Keep-alive ping: OK")
                 else:
