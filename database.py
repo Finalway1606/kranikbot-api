@@ -420,3 +420,52 @@ class UserDatabase:
                 else:
                     # Jeśli użytkownik nie istnieje, zwróć 0
                     return 0
+
+    def get_daily_stats(self):
+        """Pobiera dzienne statystyki bota"""
+        with self.lock:
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                
+                stats = {
+                    'new_users': 0,
+                    'games_played': 0,
+                    'rewards_bought': 0,
+                    'points_given': 0,
+                    'new_followers': 0,
+                    'new_subs': 0
+                }
+                
+                try:
+                    # Nowi użytkownicy dzisiaj
+                    cursor.execute('''
+                        SELECT COUNT(*) FROM users 
+                        WHERE DATE(first_seen) = DATE('now')
+                    ''')
+                    result = cursor.fetchone()
+                    stats['new_users'] = result[0] if result else 0
+                    
+                    # Gry rozegrane dzisiaj (suma wszystkich gier)
+                    cursor.execute('''
+                        SELECT SUM(total_played) FROM game_stats
+                    ''')
+                    result = cursor.fetchone()
+                    stats['games_played'] = result[0] if result and result[0] else 0
+                    
+                    # Punkty rozdane dzisiaj (przybliżenie - suma wszystkich punktów)
+                    cursor.execute('''
+                        SELECT SUM(points) FROM users WHERE points > 0
+                    ''')
+                    result = cursor.fetchone()
+                    stats['points_given'] = result[0] if result and result[0] else 0
+                    
+                    # Nagrody kupione i nowi followerzy/subskrybenci - na razie 0
+                    # (można rozszerzyć gdy będą dostępne dane)
+                    stats['rewards_bought'] = 0
+                    stats['new_followers'] = 0
+                    stats['new_subs'] = 0
+                    
+                except Exception as e:
+                    print(f"[DB] Błąd pobierania dziennych statystyk: {e}")
+                
+                return stats

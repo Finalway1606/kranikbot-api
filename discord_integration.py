@@ -957,10 +957,16 @@ class DiscordIntegration:
         
         self.send_webhook_message("🔔 Moderatorzy, potrzebna wasza pomoc!", embeds=[embed])
     
-    def send_daily_stats(self, stats: dict):
+    def send_daily_stats(self, stats: dict = None):
         """Wysyła dzienne statystyki"""
         if not self.enabled:
             return
+        
+        # Jeśli nie przekazano statystyk, pobierz je z bazy danych
+        if stats is None:
+            from database import UserDatabase
+            db = UserDatabase()
+            stats = db.get_daily_stats()
         
         embed = {
             "title": "📊 Dzienne statystyki bota",

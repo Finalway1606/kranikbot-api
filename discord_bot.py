@@ -364,6 +364,112 @@ class DiscordBot:
                     f"❌ Wystąpił błąd podczas aktualizacji sklepu: {e}", 
                     ephemeral=True
                 )
+        
+        @self.bot.tree.command(
+            name="stats",
+            description="Wyświetla statystyki bota na kanale statystyk",
+            guild=discord.Object(id=int(self.guild_id))
+        )
+        async def show_stats(interaction: discord.Interaction):
+            """Slash command do wyświetlania statystyk na określonym kanale"""
+            
+            # Sprawdź uprawnienia (administrator, moderator lub kranik1606)
+            is_admin = interaction.user.guild_permissions.administrator
+            is_mod = any(role.name.lower() in ['moderator', 'mod', 'admin'] for role in interaction.user.roles)
+            is_owner = interaction.user.name.lower() == "kranik1606"
+            
+            if not (is_admin or is_mod or is_owner):
+                await interaction.response.send_message(
+                    "❌ Nie masz uprawnień do używania tej komendy!", 
+                    ephemeral=True
+                )
+                return
+            
+            # Odpowiedz natychmiast
+            await interaction.response.send_message(
+                "📊 Wysyłam statystyki na kanał...", 
+                ephemeral=True
+            )
+            
+            try:
+                # Pobierz statystyki z bazy danych
+                stats = self.user_database.get_daily_stats()
+                
+                # ID kanału do wysłania statystyk
+                stats_channel_id = 1402757620837781658
+                
+                # Pobierz kanał
+                channel = self.bot.get_channel(stats_channel_id)
+                if not channel:
+                    await interaction.followup.send(
+                        f"❌ Nie mogę znaleźć kanału o ID {stats_channel_id}!", 
+                        ephemeral=True
+                    )
+                    return
+                
+                # Stwórz embed ze statystykami
+                embed = discord.Embed(
+                    title="📊 Statystyki bota",
+                    description="Aktualne statystyki KranikBot",
+                    color=0x00FF00,  # Zielony
+                    timestamp=datetime.now(self.poland_tz)
+                )
+                
+                embed.add_field(
+                    name="👥 Nowi użytkownicy (dzisiaj)",
+                    value=f"{stats.get('new_users', 0)}",
+                    inline=True
+                )
+                
+                embed.add_field(
+                    name="🎮 Gry rozegrane (łącznie)",
+                    value=f"{stats.get('games_played', 0)}",
+                    inline=True
+                )
+                
+                embed.add_field(
+                    name="💰 Punkty rozdane (łącznie)",
+                    value=f"{stats.get('points_given', 0):,}",
+                    inline=True
+                )
+                
+                embed.add_field(
+                    name="🎁 Nagrody kupione",
+                    value=f"{stats.get('rewards_bought', 0)}",
+                    inline=True
+                )
+                
+                embed.add_field(
+                    name="❤️ Nowi followerzy",
+                    value=f"{stats.get('new_followers', 0)}",
+                    inline=True
+                )
+                
+                embed.add_field(
+                    name="⭐ Nowi subskrybenci",
+                    value=f"{stats.get('new_subs', 0)}",
+                    inline=True
+                )
+                
+                embed.set_footer(text="KranikBot • Statystyki")
+                
+                # Wyślij embed na kanał statystyk
+                await channel.send(embed=embed)
+                
+                # Potwierdź wysłanie
+                await interaction.followup.send(
+                    f"✅ Statystyki zostały wysłane na kanał {channel.mention}!", 
+                    ephemeral=True
+                )
+                
+                safe_print(f"📊 Statystyki wysłane na kanał przez {interaction.user}")
+                
+            except Exception as e:
+                safe_print(f"❌ Błąd slash command stats: {e}")
+                await interaction.followup.send(
+                    f"❌ Wystąpił błąd podczas wysyłania statystyk: {e}", 
+                    ephemeral=True
+                )
     
     def start_bot(self):
         """Uruchamia Discord bot w osobnym wątku"""
