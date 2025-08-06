@@ -561,6 +561,11 @@ def favicon():
         parent_dir = os.path.dirname(os.path.dirname(__file__))
         return send_from_directory(parent_dir, 'kranikbot_icon.ico')
 
+@app.route('/@vite/client')
+def vite_client():
+    """Obsługuje żądania Vite (narzędzia deweloperskie) - zwraca pustą odpowiedź"""
+    return '', 204
+
 @app.route('/web', defaults={'path': ''})
 @app.route('/web/<path:path>')
 def serve_web_panel(path):
