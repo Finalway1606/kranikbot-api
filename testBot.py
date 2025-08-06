@@ -885,7 +885,7 @@ class TwitchBot:
             time.sleep(2)  # Odstęp między podziękowaniami
         
         # Sprawdź czy Sniffurious jest w aktualnej liście przed aktualizacją
-        if "sniffurious" in current_set:
+        if "Sniffurious".lower() in current_set:
             safe_print(f"✅ SNIFFURIOUS w aktualnej liście followerów")
         else:
             safe_print(f"❌ SNIFFURIOUS BRAK w aktualnej liście followerów!")
@@ -951,7 +951,7 @@ class TwitchBot:
             safe_print(f"📊 Pobrano {len(all_followers)} followerów (wszystkich)")
             
             # Sprawdź czy Sniffurious jest w liście
-            if "sniffurious" in all_followers:
+            if "Sniffurious".lower() in all_followers:
                 safe_print(f"✅ SNIFFURIOUS znaleziony w API followerów")
             else:
                 safe_print(f"❌ SNIFFURIOUS NIE ZNALEZIONY w API followerów!")
@@ -1231,38 +1231,31 @@ class TwitchBot:
         return username.lower() in self.last_followers or username.lower() == "kranik1606"
 
     def clear_non_followers_points(self):
-        """Czyści punkty użytkownikom, którzy nie są followerami"""
+        """Czyści punkty użytkownikom, którzy nie są followerami (WYŁĄCZONE - punkty dodane ręcznie przez admina nie są czyszczone)"""
         try:
-            # Pobierz wszystkich użytkowników z bazy danych
-            all_users = self.db.get_all_users_with_points()
-            cleared_count = 0
+            # FUNKCJA WYŁĄCZONA - nie czyści punktów dodanych ręcznie przez administratora
+            safe_print(f"🔍 Sprawdzanie punktów - funkcja wyłączona aby nie czyścić punktów dodanych ręcznie")
+            safe_print(f"🔍 Mamy {len(self.last_followers)} followerów w pamięci")
             
-            # Loguj liczbę followerów przed sprawdzaniem
-            safe_print(f"🔍 Sprawdzanie punktów - mamy {len(self.last_followers)} followerów w pamięci")
+            # Pobierz wszystkich użytkowników z bazy danych tylko do logowania
+            all_users = self.db.get_all_users_with_points()
+            non_followers_with_points = 0
             
             for user in all_users:
                 username = user[0]  # Pierwsza kolumna to username
                 current_points = user[1]  # Druga kolumna to points
                 
-                # Szczególne logowanie dla Sniffurious
-                if username.lower() == "sniffurious":
-                    is_follower_check = self.is_follower(username)
-                    safe_print(f"🔍 SNIFFURIOUS CHECK: is_follower={is_follower_check}, points={current_points}")
-                    safe_print(f"🔍 SNIFFURIOUS w last_followers: {'sniffurious' in self.last_followers}")
-                
                 # Sprawdź czy użytkownik jest followerem (pomijaj właściciela)
                 if not self.is_follower(username) and username.lower() != "kranik1606":
                     if current_points > 0:
-                        # Wyczyść punkty
-                        self.db.set_user_points(username, 0)
-                        cleared_count += 1
-                        safe_print(f"🧹 Wyczyszczono punkty użytkownika: {username} ({current_points} pkt)")
+                        non_followers_with_points += 1
+                        safe_print(f"ℹ️ Użytkownik bez follow ma punkty: {username} ({current_points} pkt) - NIE CZYSZCZĘ")
             
-            safe_print(f"✅ Wyczyszczono punkty {cleared_count} użytkownikom bez follow")
-            return cleared_count
+            safe_print(f"ℹ️ Znaleziono {non_followers_with_points} użytkowników bez follow z punktami - funkcja czyszczenia WYŁĄCZONA")
+            return 0  # Zwróć 0 bo nic nie zostało wyczyszczone
             
         except Exception as e:
-            safe_print(f"❌ Błąd czyszczenia punktów: {e}")
+            safe_print(f"❌ Błąd sprawdzania punktów: {e}")
             return 0
 
     def get_channel_info(self, username):
